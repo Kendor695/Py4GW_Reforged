@@ -496,6 +496,57 @@ def dump_demo_map_parity():
     return result
 # ─────────────────────────────────────────────────────────────────────
 
+def probe_char_context_email_layout():
+    """Evaluate bounded CharContext email-field offsets from the SSM pointer."""
+    result = {"section": "char_context_email_layout", "ok": False, "candidates": []}
+
+    ok, mod_cc = _safe(
+        __import__,
+        "Py4GWCoreLib.native_src.context.CharContext",
+        fromlist=["CharContext", "CharContextStruct"],
+    )
+    if not ok:
+        result["error"] = f"IMPORT_FAIL: {mod_cc}"
+        return result
+
+    import ctypes
+
+    char_context = mod_cc.CharContext
+    char_context_struct = mod_cc.CharContextStruct
+    pointer = int(char_context.get_ptr())
+    result["ptr_hex"] = _fmt_ptr(pointer)
+    result["declared_email_offset"] = int(char_context_struct.player_email_ptr.offset)
+    if not pointer:
+        result["error"] = "CharContext pointer is null"
+        return result
+
+    class EmailField(ctypes.Structure):
+        _pack_ = 1
+        _fields_ = [("code_units", ctypes.c_uint16 * 0x40)]
+
+    for padding_count in range(27, 65):
+        offset = 0x354 + padding_count * 4
+        field = EmailField.from_address(pointer + offset)
+        units = list(field.code_units)
+        try:
+            terminator = units.index(0)
+        except ValueError:
+            terminator = len(units)
+
+        value = "".join(chr(unit) for unit in units[:terminator])
+        printable = bool(value) and all(0x20 <= ord(char) <= 0x7E for char in value)
+        result["candidates"].append({
+            "h0354_count": padding_count,
+            "email_offset": f"0x{offset:04X}",
+            "leading_code_units": [f"0x{unit:04X}" for unit in units[:8]],
+            "value": value[:80] if printable else None,
+            "email_shaped": printable and "@" in value and "." in value,
+        })
+
+    result["ok"] = True
+    return result
+
+
 def dump_email_chain():
     """
     Trace the full GetAccountEmail() resolution path step by step,
@@ -554,6 +605,7 @@ def dump_email_chain():
     else:
         result["steps"]["char_ctx"] = f"IMPORT_FAIL: {mod_cc}"
 
+    result["layout_probe"] = probe_char_context_email_layout()
     return result
 
 
@@ -884,9 +936,9 @@ def write_dump(data):
 _has_run = False
 
 
-def main():
+def main(force=False):
     global _has_run
-    if _has_run:
+    if _has_run and not force:
         print("[ContextDump] Already ran.")
         return
     _has_run = True

@@ -16,7 +16,7 @@
     "pregame_context_ref": {
       "assertion_file": "UiPregame.cpp",
       "assertion_message": "!s_scene",
-      "offset": "0x34",
+      "offset": "0x32",
       "section": "text"
     }
   },

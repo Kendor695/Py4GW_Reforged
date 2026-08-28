@@ -121,8 +121,8 @@ class CharContextStruct(Structure):
         ("player_number", c_uint32),        # +0x02AC
         ("h02B0", c_uint32 * 40),           # +0x02B0
         ("progress_bar_ptr", POINTER(ProgressBar)),     # +0x0350 ProgressBar*
-        ("h0354", c_uint32 * 27),           # +0x0354
-        ("player_email_ptr", c_wchar * 0x40),   # +0x03C0 wchar_t[64]
+        ("h0354", c_uint32 * 29),           # +0x0354
+        ("player_email_ptr", c_wchar * 0x40),   # +0x03C8 wchar_t[64]
     ]
     @property
     def player_uuid(self) -> tuple[int, int, int, int]:
@@ -252,6 +252,6 @@ class CharContext:
         return CharContext._cached_ctx
         
 assert sizeof(ProgressBar) == 0x2C
-assert sizeof(CharContextStruct) == 0x440
+assert sizeof(CharContextStruct) == 0x448
 
 CharContext.enable()
