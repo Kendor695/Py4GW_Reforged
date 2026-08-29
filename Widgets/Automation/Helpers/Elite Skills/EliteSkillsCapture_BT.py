@@ -205,7 +205,7 @@ def BuildEnergySurge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(39, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 414),
         RestoreSavedBuild(),
     ]
@@ -232,7 +232,7 @@ def BuildIneptitude(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(47, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 641),
         RestoreSavedBuild(),
     ]
@@ -260,7 +260,7 @@ def BuildMigraine(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(53, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 638),
         RestoreSavedBuild(),
     ]
@@ -287,7 +287,7 @@ def BuildIllusionaryWeaponry(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(33, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -318,7 +318,7 @@ def BuildPanic(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(52, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
     ]
@@ -345,7 +345,7 @@ def BuildEcho(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(74, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 130),
         RestoreSavedBuild(),
     ]
@@ -372,7 +372,7 @@ def BuildMantraOfRecall(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(82, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -399,7 +399,7 @@ def BuildEnergyDrain(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(79, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 193),
         RestoreSavedBuild(),
     ]
@@ -426,7 +426,7 @@ def BuildKeystoneSignet(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(63, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 156),
         RestoreSavedBuild(),
     ]
@@ -453,7 +453,7 @@ def BuildMantraOfRecovery(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(13, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 349),
         RestoreSavedBuild(),
     ]
@@ -480,7 +480,7 @@ def BuildEnchantersConundrum(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1345, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 426),
         RestoreSavedBuild(),
     ]
@@ -508,7 +508,7 @@ def BuildHexEaterVortex(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1348, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 480),
         RestoreSavedBuild(),
     ]
@@ -541,7 +541,7 @@ def BuildPowerBlock(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(5, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
     ]
@@ -568,7 +568,7 @@ def BuildPowerFlux(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(953, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 469),
         RestoreSavedBuild(),
     ]
@@ -596,7 +596,7 @@ def BuildPsychicDistraction(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1053, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -623,7 +623,7 @@ def BuildArcaneLanguor(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(804, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
     ]
@@ -650,7 +650,7 @@ def BuildStolenSpeed(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(880, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 283),
         RestoreSavedBuild(),
     ]
@@ -677,7 +677,7 @@ def BuildSymbolsOfInspiration(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1339, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 473),
         RestoreSavedBuild(),
     ]
@@ -706,7 +706,7 @@ def BuildAirOfDisenchantment(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1656, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 428),
         RestoreSavedBuild(),
     ]
@@ -733,7 +733,7 @@ def BuildRecurringInsecurity(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1055, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -760,7 +760,7 @@ def BuildSharedBurden(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(900, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -788,7 +788,7 @@ def BuildSignetOfIllusions(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1346, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 494),
         RestoreSavedBuild(),
     ]
@@ -815,7 +815,7 @@ def BuildExtendConditions(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1333, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 381),
         RestoreSavedBuild(),
     ]
@@ -842,7 +842,7 @@ def BuildLyssasAura(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(813, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 643),
         RestoreSavedBuild(),
     ]
@@ -869,7 +869,7 @@ def BuildExpelHexes(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(954, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 292),
         RestoreSavedBuild(),
     ]
@@ -907,7 +907,7 @@ def BuildPiousRenewal(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1499, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 493),
         RestoreSavedBuild(),
     ]
@@ -935,7 +935,7 @@ def BuildBloodIsPower(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(119, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 393),
         RestoreSavedBuild(),
     ]
@@ -964,7 +964,7 @@ def BuildCauterySignet(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1588, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -1009,7 +1009,7 @@ def BuildTogetherAsOne(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3427, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
@@ -1042,7 +1042,7 @@ def BuildHeroicRefrain(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3431, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
@@ -1075,7 +1075,7 @@ def BuildSoulTaker(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3423, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
@@ -1108,7 +1108,7 @@ def BuildOverTheLimit(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3424, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
@@ -1141,7 +1141,7 @@ def BuildJudgmentStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3425, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
@@ -1187,7 +1187,7 @@ def BuildTimeWard(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3422, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
@@ -1220,7 +1220,7 @@ def BuildVowOfRevolution(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3430, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
@@ -1254,7 +1254,7 @@ def BuildSevenWeaponStance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3426, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
@@ -1288,7 +1288,7 @@ def BuildWeaponsOfThreeForges(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3429, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
@@ -1322,7 +1322,7 @@ def BuildShadowTheft(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(3428, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.DepositModelToStorage(model_id=38031, aftercast_ms=150),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
@@ -1359,7 +1359,7 @@ def BuildShatteringAssault(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1634, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 480),
         RestoreSavedBuild(),
     ]
@@ -1387,7 +1387,7 @@ def BuildAnthemOfGuidance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1568, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 403),
         RestoreSavedBuild(),
     ]
@@ -1421,7 +1421,7 @@ def BuildCripplingAnthem(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1554, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 376),
         RestoreSavedBuild(),
     ]
@@ -1459,7 +1459,7 @@ def BuildAngelicBond(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1587, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 434),
         RestoreSavedBuild(),
     ]
@@ -1489,7 +1489,7 @@ def BuildDefensiveAnthem(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1555, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 387),
         RestoreSavedBuild(),
     ]
@@ -1518,7 +1518,7 @@ def BuildItsJustaFleshWound(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1599, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 480),
         RestoreSavedBuild(),
     ]
@@ -1545,7 +1545,7 @@ def BuildThePowerIsYours(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1782, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
     ]
@@ -1572,7 +1572,7 @@ def BuildSongofPurification(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1570, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 403),
         RestoreSavedBuild(),
     ]
@@ -1602,7 +1602,7 @@ def BuildSongofRestoration(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1771, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 428),
         RestoreSavedBuild(),
     ]
@@ -1636,7 +1636,7 @@ def BuildCruelSpear(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1548, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 427),
         RestoreSavedBuild(),
     ]
@@ -1663,7 +1663,7 @@ def BuildStunningStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1602, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 469),
         RestoreSavedBuild(),
     ]
@@ -1696,7 +1696,7 @@ def BuildSoldiersFury(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1773, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 438),
         RestoreSavedBuild(),
     ]
@@ -1726,7 +1726,7 @@ def BuildIncoming(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1596, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 414),
         RestoreSavedBuild(),
     ]
@@ -1759,7 +1759,7 @@ def BuildFocusedAnger(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1769, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 427),
         RestoreSavedBuild(),
     ]
@@ -1790,7 +1790,7 @@ def BuildAnthemofFury(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1553, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 450),
         RestoreSavedBuild(),
     ]
@@ -1819,7 +1819,7 @@ def BuildShadowForm(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(826, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -1850,7 +1850,7 @@ def BuildShadowPrison(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1652, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 398),
         RestoreSavedBuild(),
     ]
@@ -1886,7 +1886,7 @@ def BuildShadowShroud(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(928, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 277),
         RestoreSavedBuild(),
     ]
@@ -1914,7 +1914,7 @@ def BuildWayOfTheAssassin(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1649, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -1941,7 +1941,7 @@ def BuildDarkApostasy(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1029, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 230),
         RestoreSavedBuild(),
     ]
@@ -1973,7 +1973,7 @@ def BuildAssassinsPromise(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1035, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 640),
         RestoreSavedBuild(),
     ]
@@ -2000,7 +2000,7 @@ def BuildLocustsFury(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1030, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 129),
         RestoreSavedBuild(),
     ]
@@ -2034,7 +2034,7 @@ def BuildPalmStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1045, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -2062,7 +2062,7 @@ def BuildSeepingWound(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1034, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 51),
         RestoreSavedBuild(),
     ]
@@ -2093,7 +2093,7 @@ def BuildFlashingBlades(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1042, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 220),
         RestoreSavedBuild(),
     ]
@@ -2123,7 +2123,7 @@ def BuildFoxsPromise(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1640, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 396),
         RestoreSavedBuild(),
     ]
@@ -2152,7 +2152,7 @@ def BuildAuraOfDisplacement(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(771, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 77),
         RestoreSavedBuild(),
     ]
@@ -2180,7 +2180,7 @@ def BuildMarkOfInsecurity(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(570, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 559),
         RestoreSavedBuild(),
     ]
@@ -2207,7 +2207,7 @@ def BuildHiddenCaltrops(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1642, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -2237,7 +2237,7 @@ def BuildAssaultEnchantments(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1643, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 450),
         RestoreSavedBuild(),
     ]
@@ -2264,7 +2264,7 @@ def BuildShadowMeld(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1654, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 477),
         RestoreSavedBuild(),
     ]
@@ -2291,7 +2291,7 @@ def BuildWastrelsCollapse(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1644, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 407),
         RestoreSavedBuild(),
     ]
@@ -2322,7 +2322,7 @@ def BuildGoldenSkullStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1635, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 496),
         RestoreSavedBuild(),
     ]
@@ -2352,7 +2352,7 @@ def BuildTempleStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(988, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 289),
         RestoreSavedBuild(),
     ]
@@ -2379,7 +2379,7 @@ def BuildMoebiusStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(781, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 130),
         RestoreSavedBuild(),
     ]
@@ -2407,7 +2407,7 @@ def BuildShroudOfSilence(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(801, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
     ]
@@ -2435,7 +2435,7 @@ def BuildSiphonStrength(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(827, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 288),
         RestoreSavedBuild(),
     ]
@@ -2464,7 +2464,7 @@ def BuildWayOfTheEmptyPalm(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(987, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 273),
         RestoreSavedBuild(),
     ]
@@ -2493,7 +2493,7 @@ def BuildBeguilingHaze(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(799, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -2521,7 +2521,7 @@ def BuildVowOfSilence(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1517, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 478),
         RestoreSavedBuild(),
     ]
@@ -2553,7 +2553,7 @@ def BuildOnslaught(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1754, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 643),
         RestoreSavedBuild(),
     ]
@@ -2580,7 +2580,7 @@ def BuildEbonDustAura(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1760, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 414),
         RestoreSavedBuild(),
     ]
@@ -2612,7 +2612,7 @@ def BuildAvatarOfBalthazar(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1518, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 387),
         RestoreSavedBuild(),
     ]
@@ -2642,7 +2642,7 @@ def BuildAvatarOfMelandru(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1522, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 477),
         RestoreSavedBuild(),
     ]
@@ -2673,7 +2673,7 @@ def BuildAvatarOfDwayna(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1519, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -2703,7 +2703,7 @@ def BuildAvatarOfLyssa(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1521, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 554),
         RestoreSavedBuild(),
     ]
@@ -2731,7 +2731,7 @@ def BuildAvatarOfGrenth(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1520, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 426),
         RestoreSavedBuild(),
     ]
@@ -2764,7 +2764,7 @@ def BuildArcaneZeal(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1502, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 450),
         RestoreSavedBuild(),
     ]
@@ -2791,7 +2791,7 @@ def BuildGrenthsGrasp(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1756, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 477),
         RestoreSavedBuild(),
     ]
@@ -2818,7 +2818,7 @@ def BuildReapersSweep(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1767, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 421),
         RestoreSavedBuild(),
     ]
@@ -2847,7 +2847,7 @@ def BuildVowOfStrength(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1759, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 376),
         RestoreSavedBuild(),
     ]
@@ -2874,7 +2874,7 @@ def BuildWoundingStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1536, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 476),
         RestoreSavedBuild(),
     ]
@@ -2901,7 +2901,7 @@ def BuildZealousVow(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1761, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 378),
         RestoreSavedBuild(),
     ]
@@ -2930,7 +2930,7 @@ def BuildSignetOfSpirits(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1239, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 388),
         RestoreSavedBuild(),
     ]
@@ -2957,7 +2957,7 @@ def BuildAttunedWasSongkai(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1220, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 222),
         RestoreSavedBuild(),
     ]
@@ -2984,7 +2984,7 @@ def BuildClamorOfSouls(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1215, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 222),
         RestoreSavedBuild(),
     ]
@@ -3011,7 +3011,7 @@ def BuildCaretakersCharge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1744, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 473),
         RestoreSavedBuild(),
     ]
@@ -3038,7 +3038,7 @@ def BuildConsumeSoul(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(914, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 389),
         RestoreSavedBuild(),
     ]
@@ -3066,7 +3066,7 @@ def BuildSoulTwisting(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1240, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 298),
         RestoreSavedBuild(),
     ]
@@ -3100,7 +3100,7 @@ def BuildXinraesWeapon(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1750, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 496),
         RestoreSavedBuild(),
     ]
@@ -3129,7 +3129,7 @@ def BuildWieldersZeal(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1737, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 376),
         RestoreSavedBuild(),
     ]
@@ -3158,7 +3158,7 @@ def BuildDestructiveWasGlaive(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1732, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 387),
         RestoreSavedBuild(),
     ]
@@ -3185,7 +3185,7 @@ def BuildGraspingWasKuurong(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(789, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 391),
         RestoreSavedBuild(),
     ]
@@ -3212,7 +3212,7 @@ def BuildOfferingOfSpirit(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1479, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 495),
         RestoreSavedBuild(),
     ]
@@ -3239,7 +3239,7 @@ def BuildPreservation(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1250, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 279),
         RestoreSavedBuild(),
     ]
@@ -3266,7 +3266,7 @@ def BuildReclaimEssence(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1482, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -3293,7 +3293,7 @@ def BuildRitualLord(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1217, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 289),
         RestoreSavedBuild(),
     ]
@@ -3332,7 +3332,7 @@ def BuildSignetOfGhostlyMight(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1742, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 480),
         RestoreSavedBuild(),
     ]
@@ -3360,7 +3360,7 @@ def BuildSpiritChanneling(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1231, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 283),
         RestoreSavedBuild(),
     ]
@@ -3388,7 +3388,7 @@ def BuildSpiritLightWeapon(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1257, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 390),
         RestoreSavedBuild(),
     ]
@@ -3416,7 +3416,7 @@ def BuildSpiritsStrength(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1736, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 428),
         RestoreSavedBuild(),
     ]
@@ -3443,7 +3443,7 @@ def BuildTranquilWasTanasen(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(913, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 51),
         RestoreSavedBuild(),
     ]
@@ -3470,7 +3470,7 @@ def BuildVengefulWasKhanhei(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(790, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -3500,7 +3500,7 @@ def BuildWanderlust(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1255, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -3528,7 +3528,7 @@ def BuildWeaponOfFury(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1749, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -3556,7 +3556,7 @@ def BuildWeaponOfQuickening(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1268, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 219),
         RestoreSavedBuild(),
     ]
@@ -3585,7 +3585,7 @@ def BuildPrimalRage(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(831, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 298),
         RestoreSavedBuild(),
     ]
@@ -3618,7 +3618,7 @@ def BuildEviscerate(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(338, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
     ]
@@ -3646,7 +3646,7 @@ def BuildVictoryIsMine(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(365, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 158),
         RestoreSavedBuild(),
     ]
@@ -3674,7 +3674,7 @@ def BuildCharge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(364, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 277),
         RestoreSavedBuild(),
     ]
@@ -3703,7 +3703,7 @@ def BuildCoward(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(869, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 278),
         RestoreSavedBuild(),
     ]
@@ -3731,7 +3731,7 @@ def BuildYoureAllAlone(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1412, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 376),
         RestoreSavedBuild(),
     ]
@@ -3759,7 +3759,7 @@ def BuildAuspiciousParry(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1142, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 225),
         RestoreSavedBuild(),
     ]
@@ -3787,7 +3787,7 @@ def BuildBackbreaker(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(358, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 638),
         RestoreSavedBuild(),
     ]
@@ -3815,7 +3815,7 @@ def BuildBattleRage(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(317, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 219),
         RestoreSavedBuild(),
     ]
@@ -3843,7 +3843,7 @@ def BuildBullsCharge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(379, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
     ]
@@ -3871,7 +3871,7 @@ def BuildChargingStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1405, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 435),
         RestoreSavedBuild(),
     ]
@@ -3898,7 +3898,7 @@ def BuildCleave(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(335, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 289),
         RestoreSavedBuild(),
     ]
@@ -3926,7 +3926,7 @@ def BuildCripplingSlash(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1415, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 644),
         RestoreSavedBuild(),
     ]
@@ -3954,7 +3954,7 @@ def BuildDecapitate(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1696, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -3982,7 +3982,7 @@ def BuildDefyPain(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(318, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 24),
         RestoreSavedBuild(),
     ]
@@ -4010,7 +4010,7 @@ def BuildDevastatingHammer(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(355, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 279),
         RestoreSavedBuild(),
     ]
@@ -4040,7 +4040,7 @@ def BuildDragonSlash(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(907, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 273),
         RestoreSavedBuild(),
     ]
@@ -4068,7 +4068,7 @@ def BuildDwarvenBattleStance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(375, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 639),
         RestoreSavedBuild(),
     ]
@@ -4096,7 +4096,7 @@ def BuildEnragedSmash(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(993, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 274),
         RestoreSavedBuild(),
     ]
@@ -4124,7 +4124,7 @@ def BuildForcefulBlow(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(889, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 272),
         RestoreSavedBuild(),
     ]
@@ -4152,7 +4152,7 @@ def BuildHeadbutt(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1406, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 381),
         RestoreSavedBuild(),
     ]
@@ -4182,7 +4182,7 @@ def BuildHundredBlades(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(381, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -4210,7 +4210,7 @@ def BuildMagehunterStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1694, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -4238,7 +4238,7 @@ def BuildMagehuntersSmash(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1697, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 476),
         RestoreSavedBuild(),
     ]
@@ -4266,7 +4266,7 @@ def BuildQuiveringBlade(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(892, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -4294,7 +4294,7 @@ def BuildRageoftheNtouka(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1408, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 387),
         RestoreSavedBuild(),
     ]
@@ -4322,7 +4322,7 @@ def BuildShove(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1146, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 77),
         RestoreSavedBuild(),
     ]
@@ -4350,7 +4350,7 @@ def BuildSkullCrack(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(329, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 643),
         RestoreSavedBuild(),
     ]
@@ -4378,7 +4378,7 @@ def BuildSoldiersStance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1698, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 545),
         RestoreSavedBuild(),
     ]
@@ -4406,7 +4406,7 @@ def BuildSteadyStance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1701, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 407),
         RestoreSavedBuild(),
     ]
@@ -4434,7 +4434,7 @@ def BuildTripleChop(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(992, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -4462,7 +4462,7 @@ def BuildWarriorsEndurance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(374, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 117),
         RestoreSavedBuild(),
     ]
@@ -4492,7 +4492,7 @@ def BuildWhirlingAxe(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(888, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 273),
         RestoreSavedBuild(),
     ]
@@ -4522,7 +4522,7 @@ def BuildInfuriatingHeat(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -4556,7 +4556,7 @@ def BuildBroadheadArrow(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -4588,7 +4588,7 @@ def BuildGreaterConflagration(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         BT.Wait(duration_ms=2000),
         RestoreSavedBuild(),
@@ -4621,7 +4621,7 @@ def BuildPoisonArrow(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 158),
         RestoreSavedBuild(),
     ]
@@ -4653,7 +4653,7 @@ def BuildPreparedShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 642),
         RestoreSavedBuild(),
     ]
@@ -4687,7 +4687,7 @@ def BuildArchersSignet(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 129),
         RestoreSavedBuild(),
     ]
@@ -4720,7 +4720,7 @@ def BuildGlassArrows(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 130),
         RestoreSavedBuild(),
     ]
@@ -4752,7 +4752,7 @@ def BuildBarrage(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 349),
         RestoreSavedBuild(),
     ]
@@ -4785,7 +4785,7 @@ def BuildBurningArrow(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 381),
         RestoreSavedBuild(),
     ]
@@ -4819,7 +4819,7 @@ def BuildCripplingShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 640),
         RestoreSavedBuild(),
     ]
@@ -4850,7 +4850,7 @@ def BuildEnragedLunge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 51),
         RestoreSavedBuild(),
     ]
@@ -4884,7 +4884,7 @@ def BuildEquinox(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -4917,7 +4917,7 @@ def BuildEscape(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 224),
         RestoreSavedBuild(),
     ]
@@ -4948,7 +4948,7 @@ def BuildExpertsDexterity(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 407),
         RestoreSavedBuild(),
     ]
@@ -4981,7 +4981,7 @@ def BuildFamine(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
     ]
@@ -5014,7 +5014,7 @@ def BuildFerociousStrike(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 273),
         RestoreSavedBuild(),
     ]
@@ -5045,7 +5045,7 @@ def BuildHealAsOne(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 390),
         RestoreSavedBuild(),
     ]
@@ -5079,7 +5079,7 @@ def BuildLacerate(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 272),
         RestoreSavedBuild(),
     ]
@@ -5116,7 +5116,7 @@ def BuildMagebaneShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(skill.skill_id, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -5151,7 +5151,7 @@ def BuildMarksmansWager(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(430, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 117),
         RestoreSavedBuild(),
     ]
@@ -5179,7 +5179,7 @@ def BuildMelandrusArrows(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(429, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 159),
         RestoreSavedBuild(),
     ]
@@ -5207,7 +5207,7 @@ def BuildMelandrusShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(853, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 193),
         RestoreSavedBuild(),
     ]
@@ -5235,7 +5235,7 @@ def BuildOathShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(405, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 23),
         RestoreSavedBuild(),
     ]
@@ -5263,7 +5263,7 @@ def BuildQuickShot(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(397, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 425),
         RestoreSavedBuild(),
     ]
@@ -5290,7 +5290,7 @@ def BuildQuicksand(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1473, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -5318,7 +5318,7 @@ def BuildRampageAsOne(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1721, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 387),
         RestoreSavedBuild(),
     ]
@@ -5346,7 +5346,7 @@ def BuildScavengersFocus(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1471, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
     ]
@@ -5373,7 +5373,7 @@ def BuildSmokeTrap(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1729, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -5401,7 +5401,7 @@ def BuildSpikeTrap(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(461, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 219),
         RestoreSavedBuild(),
     ]
@@ -5429,7 +5429,7 @@ def BuildStrikeAsOne(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1468, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 421),
         RestoreSavedBuild(),
     ]
@@ -5457,7 +5457,7 @@ def BuildTrappersFocus(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(946, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 389),
         RestoreSavedBuild(),
     ]
@@ -5482,7 +5482,7 @@ def BuildSignetOfJudgement(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(294, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -5508,7 +5508,7 @@ def BuildUnyieldingAura(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(268, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 158),
         RestoreSavedBuild(),
     ]
@@ -5536,7 +5536,7 @@ def BuildSpellBreaker(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(273, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -5561,7 +5561,7 @@ def BuildGlimmerOfLight(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1686, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 421),
         RestoreSavedBuild(),
     ]
@@ -5592,7 +5592,7 @@ def BuildBlessedLight(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(941, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 193),
         RestoreSavedBuild(),
     ]
@@ -5620,7 +5620,7 @@ def BuildHealingLight(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(867, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 193),
         RestoreSavedBuild(),
     ]
@@ -5649,7 +5649,7 @@ def BuildBoonSignet(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(847, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 388),
         RestoreSavedBuild(),
     ]
@@ -5679,7 +5679,7 @@ def BuildHealersBoon(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1393, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 403),
         RestoreSavedBuild(),
     ]
@@ -5708,7 +5708,7 @@ def BuildPeaceandHarmony(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(266, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -5736,7 +5736,7 @@ def BuildWithdrawHexes(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(942, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 389),
         RestoreSavedBuild(),
     ]
@@ -5763,7 +5763,7 @@ def BuildHealingBurst(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1118, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 130),
         RestoreSavedBuild(),
     ]
@@ -5791,7 +5791,7 @@ def BuildHealingHands(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(285, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
     ]
@@ -5818,7 +5818,7 @@ def BuildLightofDeliverance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1397, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 554),
         RestoreSavedBuild(),
     ]
@@ -5848,7 +5848,7 @@ def BuildWordofHealing(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(282, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -5875,7 +5875,7 @@ def BuildAirofEnchantment(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1115, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 297),
         RestoreSavedBuild(),
     ]
@@ -5902,7 +5902,7 @@ def BuildAuraofFaith(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(260, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 23),
         RestoreSavedBuild(),
     ]
@@ -5934,7 +5934,7 @@ def BuildDivertHexes(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1692, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 480),
         RestoreSavedBuild(),
     ]
@@ -5962,7 +5962,7 @@ def BuildLifeSheath(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1123, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -5989,7 +5989,7 @@ def BuildShieldOfRegeneration(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(261, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 648),
         RestoreSavedBuild(),
     ]
@@ -6016,7 +6016,7 @@ def BuildZealousBenediction(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1687, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 428),
         RestoreSavedBuild(),
     ]
@@ -6043,7 +6043,7 @@ def BuildDefendersZeal(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1688, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 469),
         RestoreSavedBuild(),
     ]
@@ -6073,7 +6073,7 @@ def BuildRayofJudgment(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(830, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -6100,7 +6100,7 @@ def BuildWordOfCensure(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1129, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -6127,7 +6127,7 @@ def BuildEmpathicRemoval(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1126, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 129),
         RestoreSavedBuild(),
     ]
@@ -6152,7 +6152,7 @@ def BuildMartyr(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(298, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -6179,7 +6179,7 @@ def BuildSignetOfRemoval(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1690, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 427),
         RestoreSavedBuild(),
     ]
@@ -6206,7 +6206,7 @@ def BuildBalthazarsPendulum(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1395, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 378),
         RestoreSavedBuild(),
     ]
@@ -6231,7 +6231,7 @@ def BuildLifeBarrier(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(270, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 24),
         RestoreSavedBuild(),
     ]
@@ -6257,7 +6257,7 @@ def BuildMarkOfProtection(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(269, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 38),
         RestoreSavedBuild(),
     ]
@@ -6284,7 +6284,7 @@ def BuildAnimateFleshGolem(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(832, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 51),
         RestoreSavedBuild(),
     ]
@@ -6310,7 +6310,7 @@ def BuildContagion(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1356, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 425),
         RestoreSavedBuild(),
     ]
@@ -6336,7 +6336,7 @@ def BuildCorruptEnchantment(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1362, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 393),
         RestoreSavedBuild(),
     ]
@@ -6362,7 +6362,7 @@ def BuildCultistsFervor(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(806, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 234),
         RestoreSavedBuild(),
     ]
@@ -6388,7 +6388,7 @@ def BuildTaintedFlesh(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(113, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -6415,7 +6415,7 @@ def BuildDepravity(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(820, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 381),
         RestoreSavedBuild(),
     ]
@@ -6441,7 +6441,7 @@ def BuildDiscord(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(817, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 350),
         RestoreSavedBuild(),
     ]
@@ -6467,7 +6467,7 @@ def BuildIcyVeins(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(821, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 222),
         RestoreSavedBuild(),
     ]
@@ -6493,7 +6493,7 @@ def BuildCripplingAnguish(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(54, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 222),
         RestoreSavedBuild(),
     ]
@@ -6520,7 +6520,7 @@ def BuildRavenousGaze(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(862, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Wait(duration_ms=2000),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
@@ -6547,7 +6547,7 @@ def BuildSignetOfSuffering(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1364, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -6573,7 +6573,7 @@ def BuildLingeringCurse(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(142, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 272),
         RestoreSavedBuild(),
     ]
@@ -6600,7 +6600,7 @@ def BuildSoulBind(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(901, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -6626,7 +6626,7 @@ def BuildVampiricSpirit(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(819, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 272),
         RestoreSavedBuild(),
     ]
@@ -6652,7 +6652,7 @@ def BuildGrenthsBalance(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(86, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 378),
         RestoreSavedBuild(),
     ]
@@ -6678,7 +6678,7 @@ def BuildJaggedBones(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1355, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 643),
         RestoreSavedBuild(),
     ]
@@ -6703,7 +6703,7 @@ def BuildOfferingOfBlood(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(146, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 22),
         RestoreSavedBuild(),
     ]
@@ -6733,7 +6733,7 @@ def BuildOrderOfTheVampire(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(148, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 117),
         RestoreSavedBuild(),
     ]
@@ -6758,7 +6758,7 @@ def BuildToxicChill(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1659, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 433),
         RestoreSavedBuild(),
     ]
@@ -6784,7 +6784,7 @@ def BuildWailOfDoom(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(764, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
     ]
@@ -6811,7 +6811,7 @@ def BuildWeakenKnees(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(822, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 129),
         RestoreSavedBuild(),
     ]
@@ -6837,7 +6837,7 @@ def BuildSpoilVictor(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1066, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 230),
         RestoreSavedBuild(),
     ]
@@ -6866,7 +6866,7 @@ def BuildLifeTransfer(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(126, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
     ]
@@ -6891,7 +6891,7 @@ def BuildSpitefulSpirit(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(121, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -6916,7 +6916,7 @@ def BuildReapersMark(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(808, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 378),
         RestoreSavedBuild(),
     ]
@@ -6941,7 +6941,7 @@ def BuildPlagueSignet(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(132, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 640),
         RestoreSavedBuild(),
     ]
@@ -6968,7 +6968,7 @@ def BuildAuraOfTheLich(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(114, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 35),
         RestoreSavedBuild(),
     ]
@@ -6992,7 +6992,7 @@ def BuildMistForm(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(236, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -7022,7 +7022,7 @@ def BuildObsidianFlesh(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(218, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 438),
         RestoreSavedBuild(),
     ]
@@ -7048,7 +7048,7 @@ def BuildMindBurn(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(185, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 217),
         RestoreSavedBuild(),
     ]
@@ -7074,7 +7074,7 @@ def BuildGlimmeringMark(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(227, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 158),
         RestoreSavedBuild(),
     ]
@@ -7099,7 +7099,7 @@ def BuildMindShock(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(226, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 155),
         RestoreSavedBuild(),
     ]
@@ -7125,7 +7125,7 @@ def BuildThunderclap(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(228, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 23),
         RestoreSavedBuild(),
     ]
@@ -7151,7 +7151,7 @@ def BuildMasterOfMagic(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1378, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 393),
         RestoreSavedBuild(),
     ]
@@ -7177,7 +7177,7 @@ def BuildInvokeLightning(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1664, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 393),
         RestoreSavedBuild(),
     ]
@@ -7201,7 +7201,7 @@ def BuildShockwave(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(937, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 272),
         RestoreSavedBuild(),
     ]
@@ -7227,7 +7227,7 @@ def BuildDoubleDragon(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1091, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 303),
         RestoreSavedBuild(),
     ]
@@ -7253,7 +7253,7 @@ def BuildBlindingSurge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1367, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 433),
         RestoreSavedBuild(),
     ]
@@ -7279,7 +7279,7 @@ def BuildElementalAttunement(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(164, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 477),
         RestoreSavedBuild(),
     ]
@@ -7305,7 +7305,7 @@ def BuildGust(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(843, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 287),
         RestoreSavedBuild(),
     ]
@@ -7330,7 +7330,7 @@ def BuildLightningSurge(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(205, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 288),
         RestoreSavedBuild(),
     ]
@@ -7356,7 +7356,7 @@ def BuildRideTheLightning(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(836, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 650),
         RestoreSavedBuild(),
     ]
@@ -7384,7 +7384,7 @@ def BuildSandstorm(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1372, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 440),
         RestoreSavedBuild(),
     ]
@@ -7412,7 +7412,7 @@ def BuildStoneSheath(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1373, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 427),
         RestoreSavedBuild(),
     ]
@@ -7437,7 +7437,7 @@ def BuildUnsteadyGround(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1083, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 288),
         RestoreSavedBuild(),
     ]
@@ -7464,7 +7464,7 @@ def BuildEnergyBoon(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(837, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 388),
         RestoreSavedBuild(),
     ]
@@ -7490,7 +7490,7 @@ def BuildEtherPrism(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1377, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 442),
         RestoreSavedBuild(),
     ]
@@ -7527,7 +7527,7 @@ def BuildEtherRenewal(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(181, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 117),
         RestoreSavedBuild(),
     ]
@@ -7552,7 +7552,7 @@ def BuildMindBlast(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1662, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 495),
         RestoreSavedBuild(),
     ]
@@ -7581,7 +7581,7 @@ def BuildSavannahHeat(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1380, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 545),
         RestoreSavedBuild(),
     ]
@@ -7607,7 +7607,7 @@ def BuildSearingFlames(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(884, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 478),
         RestoreSavedBuild(),
     ]
@@ -7633,7 +7633,7 @@ def BuildStarBurst(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1095, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 226),
         RestoreSavedBuild(),
     ]
@@ -7658,7 +7658,7 @@ def BuildIcyShackles(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(939, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 424),
         RestoreSavedBuild(),
     ]
@@ -7685,7 +7685,7 @@ def BuildMindFreeze(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(209, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 469),
         RestoreSavedBuild(),
     ]
@@ -7712,7 +7712,7 @@ def BuildMirrorOfIce(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1098, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 284),
         RestoreSavedBuild(),
     ]
@@ -7738,7 +7738,7 @@ def BuildShatterstone(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(809, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 130),
         RestoreSavedBuild(),
     ]
@@ -7764,7 +7764,7 @@ def BuildWaterTrident(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(237, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 642),
         RestoreSavedBuild(),
     ]
@@ -7789,7 +7789,7 @@ def BuildSimpleThievery(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1350, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 376),
         RestoreSavedBuild(),
     ]
@@ -7815,7 +7815,7 @@ def BuildPsychicInstability(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1057, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 277),
         RestoreSavedBuild(),
     ]
@@ -7841,7 +7841,7 @@ def BuildTease(skill: EliteSkill) -> BehaviorTree:
         ConfigurePacifistEnv(),
         UseSignetOfCapture(),
         BT.Wait(duration_ms=5000),
-        CaptureSkillWithRetry(1342, max_retries=3),
+        CaptureSkillWithRetry(skill.skill_id),
         BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 393),
         RestoreSavedBuild(),
     ]
@@ -8235,8 +8235,118 @@ def UseSignetOfCapture() -> BehaviorTree.ActionNode:
         action_fn=_use_action,
     )
 
-
 def ClickSkillFrame(skill_id: int) -> BehaviorTree.ActionNode:
+    """Click the capture dialog skill frame using the working original approach."""
+    def _click_action():
+        try:
+            # Get attribute offset for the skill
+            attribute = GLOBAL_CACHE.Skill.Attribute.GetAttribute(skill_id)
+            attribute_offset = attribute if isinstance(attribute, int) else 1
+            
+            # Get the skill frame using the Frame API
+            skill_frame = Frame.capture_skill(attribute_offset, skill_id)
+            
+            ConsoleLog("Capture", f"Looking for skill frame {skill_id} with attribute offset {attribute_offset}", log=True)
+            
+            if not skill_frame.exists:
+                ConsoleLog("Capture", f"Skill frame {skill_id} not found; signet UI may not be open", log=True)
+                return BehaviorTree.NodeState.FAILURE
+
+            ConsoleLog("Capture", f"Found skill frame {skill_id}, clicking it", log=True)
+            
+            # Use mouse_click_action like the working original
+            PyGameThread.enqueue(lambda f=skill_frame: f.mouse_click_action(0, 0))
+            time.sleep(0.2)
+
+            # Wait before clicking capture button (like original)
+            time.sleep(1.0)
+            
+            # Try to find and click the capture button
+            capture_frame = Frame(FrameId.SkillCaptureDialog.Content)
+            
+            if capture_frame.exists:
+                ConsoleLog("Capture", f"Capture button found, clicking it", log=True)
+                capture_frame.click()
+                time.sleep(0.2)
+                ConsoleLog("Capture", f"Successfully clicked capture button for skill {skill_id}", log=True)
+                return BehaviorTree.NodeState.SUCCESS
+
+            ConsoleLog("Capture", "Capture button not found in the dialog", log=True)
+            return BehaviorTree.NodeState.FAILURE
+
+        except Exception as e:
+            ConsoleLog("Capture", f"Failed to click skill frame: {e}", log=True)
+            return BehaviorTree.NodeState.FAILURE
+
+    return BehaviorTree.ActionNode(
+        name=f'Click Skill Frame {skill_id}',
+        action_fn=_click_action,
+    )
+
+def CaptureSkillWithRetry(skill_id: int, max_retries: int = 3) -> BehaviorTree:
+    """Capture a skill with retry logic if verification fails."""
+    def _build_capture_sequence():
+        retry_attempts = []
+
+        # Build each retry attempt as a Sequence
+        for i in range(max_retries):
+            retry_attempts.append(
+                BT.Sequence(
+                    name=f'Capture Attempt {i+1}',
+                    children=[
+                        ClickSkillFrame(skill_id),
+                        BT.Wait(duration_ms=5000),
+                        VerifySkillCaptured(skill_id),
+                    ]
+                )
+            )
+        
+        # Final fallback that always fails
+        retry_attempts.append(BT.Failer(name='All Retries Exhausted'))
+        
+        return BehaviorTree(
+            BehaviorTree.SelectorNode(
+                name=f'Capture Skill {skill_id} With Retry',
+                children=retry_attempts
+            )
+        )
+    
+    return _build_capture_sequence()
+
+def VerifySkillCaptured(skill_id: int) -> BehaviorTree.ActionNode:
+    """Verify that the skill was successfully captured by checking both skillbar and unlocked skills."""
+    def _verify_action():
+        try:
+            # First check if skill is on the skillbar (immediate capture)
+            skill_on_bar = False
+            for slot in range(1, 9):
+                bar_skill_id = SkillBar.GetSkillIDBySlot(slot)
+                if bar_skill_id == skill_id:
+                    skill_on_bar = True
+                    ConsoleLog("Capture", f"Skill {skill_id} found on skillbar slot {slot}", log=True)
+                    break
+
+            # Also check if skill is unlocked (persistent)
+            skill_unlocked = is_skill_unlocked(skill_id)
+
+            if skill_on_bar or skill_unlocked:
+                ConsoleLog("Capture", f"Skill {skill_id} ({GLOBAL_CACHE.Skill.GetName(skill_id)}) successfully captured!", log=True)
+                return BehaviorTree.NodeState.SUCCESS
+
+            ConsoleLog("Capture", f"Skill {skill_id} ({GLOBAL_CACHE.Skill.GetName(skill_id)}) not yet captured, will retry", log=True)
+            return BehaviorTree.NodeState.FAILURE
+
+        except Exception as e:
+            ConsoleLog("Capture", f"Failed to verify skill capture: {e}", log=True)
+            return BehaviorTree.NodeState.FAILURE
+
+    return BehaviorTree.ActionNode(
+        name=f'Verify Skill {skill_id} Captured',
+        action_fn=_verify_action,
+    )
+
+
+def ClickSkillFrameOLD(skill_id: int) -> BehaviorTree.ActionNode:
     """Click the capture dialog skill frame using the working original approach."""
     def _click_action():
         try:
@@ -8285,7 +8395,38 @@ def ClickSkillFrame(skill_id: int) -> BehaviorTree.ActionNode:
     )
 
 
-def VerifySkillCaptured(skill_id: int) -> BehaviorTree.ActionNode:
+
+
+def CaptureSkillWithRetryOLD(skill_id: int, max_retries: int = 3) -> BehaviorTree:
+    """Capture a skill with retry logic if verification fails."""
+    def _build_capture_sequence():
+        # Use Selector to stop on first success
+        retry_attempts = []
+        for i in range(max_retries):
+            retry_attempts.append(
+                BT.Sequence(
+                    name=f'Capture Attempt {i+1}',
+                    children=[
+                        ClickSkillFrame(skill_id),
+                        BT.Wait(duration_ms=5000),
+                        VerifySkillCaptured(skill_id),
+                    ]
+                )
+            )
+        
+        # Add a final fallback that always fails if all retries exhausted
+        retry_attempts.append(BT.Failer(name='All Retries Exhausted'))
+        
+        return BehaviorTree(
+            BehaviorTree.SelectorNode(
+                name=f'Capture Skill {skill_id} With Retry',
+                children=retry_attempts
+            )
+        )
+    
+    return _build_capture_sequence()
+
+def VerifySkillCapturedOLD(skill_id: int) -> BehaviorTree.ActionNode:
     """Verify that the skill was successfully captured by checking both skillbar and unlocked skills."""
     def _verify_action():
         try:
@@ -8315,36 +8456,6 @@ def VerifySkillCaptured(skill_id: int) -> BehaviorTree.ActionNode:
         name=f'Verify Skill {skill_id} Captured',
         action_fn=_verify_action,
     )
-
-
-def CaptureSkillWithRetry(skill_id: int, max_retries: int = 3) -> BehaviorTree:
-    """Capture a skill with retry logic if verification fails."""
-    def _build_capture_sequence():
-        # Use Selector to stop on first success
-        retry_attempts = []
-        for i in range(max_retries):
-            retry_attempts.append(
-                BT.Sequence(
-                    name=f'Capture Attempt {i+1}',
-                    children=[
-                        ClickSkillFrame(skill_id),
-                        BT.Wait(duration_ms=5000),
-                        VerifySkillCaptured(skill_id),
-                    ]
-                )
-            )
-        
-        # Add a final fallback that always fails if all retries exhausted
-        retry_attempts.append(BT.Failer(name='All Retries Exhausted'))
-        
-        return BehaviorTree(
-            BehaviorTree.SelectorNode(
-                name=f'Capture Skill {skill_id} With Retry',
-                children=retry_attempts
-            )
-        )
-    
-    return _build_capture_sequence()
 
 SECONDARY_CAPTURE_BUILDS: Dict[LocalProfession, Dict[LocalProfession, str]] = {
     LocalProfession.WARRIOR: {
@@ -8521,68 +8632,106 @@ def HasSignetOfCapture() -> bool:
     except Exception:
         return False
 
+def BuySignetOfCaptureNode() -> BehaviorTree.ActionNode:
+    """BT ActionNode that buys Signet of Capture using Player.BuySkill(3)."""
+    def _buy():
+        try:
+            Player.BuySkill(3)
+            ConsoleLog("Signet", "Purchased Signet of Capture (skill ID 3)", log=True)
+            return BehaviorTree.NodeState.SUCCESS
+        except Exception as e:
+            ConsoleLog("Signet", f"Failed to purchase Signet of Capture: {e}", log=True)
+            return BehaviorTree.NodeState.FAILURE
+
+    return BehaviorTree.ActionNode(
+        name="Buy Signet of Capture",
+        action_fn=_buy
+    )
+
 
 def BuySignetOfCapture(profession: LocalProfession) -> BehaviorTree:
     """Travel to Eye of the North and buy Signet of Capture if not equipped."""
-    def _has_signet_condition():
+
+    def _has_signet() -> bool:
         try:
-            return BehaviorTree.NodeState.SUCCESS if HasSignetOfCapture() else BehaviorTree.NodeState.FAILURE
+            return HasSignetOfCapture()
         except Exception as e:
             ConsoleLog("Capture", f"Error checking for Signet of Capture: {e}", log=True)
-            return BehaviorTree.NodeState.FAILURE
-    
-    # Full purchase sequence from original
-    purchase_sequence = BT.Sequence(
-        name='Buy Signet of Capture',
+            return False
+
+    skip_purchase = BT.Sequence(
+        name="Skip Purchase",
         children=[
-            BT.LogMessage(message='Buying Signet of Capture from Eye of the North...', module_name=MODULE_NAME, print_to_console=True),
+            BehaviorTree.ConditionNode(
+                name="Has Signet of Capture",
+                condition_fn=_has_signet
+            ),
+            BT.LogMessage(
+                message="Signet of Capture already equipped - skipping purchase",
+                module_name=MODULE_NAME,
+                print_to_console=True
+            )
+        ]
+    )
+
+    purchase_sequence = BT.Sequence(
+        name="Buy Signet of Capture",
+        children=[
+            BT.LogMessage(
+                message="Traveling to Eye of the North to buy Signet of Capture...",
+                module_name=MODULE_NAME,
+                print_to_console=True
+            ),
+
+            # Travel to Eye of the North
             BT.EqualizeGold(target_gold=1000, deposit_all=True),
             BT.LeaveParty(),
             BT.Wait(duration_ms=500),
             BT.Travel(target_map_id=642),
             BT.Wait(duration_ms=2000),
+
+            # Move to skill trainer NPC
             BT.MoveAndDialog(pos=(-3551.00, 2341.00), dialog_id=0x84),
             BT.Wait(duration_ms=500),
-            BT.LogMessage(message='Purchasing Signet of Capture (skill ID 3)', module_name=MODULE_NAME, print_to_console=True),
-            BT.LogMessage(message='Note: Manual purchase required - BT framework needs CoreBT.Player.BuySkill implementation', module_name=MODULE_NAME, print_to_console=True),
-            # Note: CoreBT.Player.BuySkill would go here when available
-            BT.Wait(duration_ms=2000),
+
+            # TEST: Buy without clicking the UI button
+            BuySignetOfCaptureNode(),
+            BT.Wait(duration_ms=500),
+
             BT.LeaveParty(),
             BT.Wait(duration_ms=500),
+
+            # Return to starting map
             BT.Travel(target_map_id=_starting_map_id if _starting_map_id else 642),
             BT.Wait(duration_ms=2000),
-            BT.LogMessage(message='Returned to starting map, reloading build to equip signet', module_name=MODULE_NAME, print_to_console=True),
-            # Reload the secondary build to equip the newly purchased signet
+
+            BT.LogMessage(
+                message="Returned to starting map, reloading build to equip signet",
+                module_name=MODULE_NAME,
+                print_to_console=True
+            ),
+
             LoadSecondaryBuild(profession),
             BT.Wait(duration_ms=2000),
-            BT.LogMessage(message='Signet purchase sequence complete', module_name=MODULE_NAME, print_to_console=True),
+
+            BT.LogMessage(
+                message="Signet purchase sequence complete",
+                module_name=MODULE_NAME,
+                print_to_console=True
+            ),
         ]
     )
-    
-    return BehaviorTree(
-        BehaviorTree.SelectorNode(
-            name='Buy Signet of Capture',
-            children=[
-                # If has signet, succeed immediately and skip purchase
-                BehaviorTree(
-                    BehaviorTree.SequenceNode(
-                        name='Skip Purchase',
-                        children=[
-                            BehaviorTree(
-                                BehaviorTree.ConditionNode(
-                                    name='Has Signet of Capture',
-                                    condition_fn=_has_signet_condition
-                                )
-                            ),
-                            BT.LogMessage(message='Signet of Capture already equipped - skipping purchase', module_name=MODULE_NAME, print_to_console=True),
-                        ]
-                    )
-                ),
-                # If no signet, do the full purchase
-                purchase_sequence
-            ]
-        )
+
+    root = BehaviorTree.SelectorNode(
+        name="Buy Signet of Capture Selector",
+        children=[
+            skip_purchase,
+            purchase_sequence
+        ]
     )
+
+    return BehaviorTree(root)
+
 
 
 def LoadSecondaryBuild(profession: LocalProfession) -> BehaviorTree.ActionNode:
