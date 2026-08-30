@@ -502,34 +502,15 @@ class Inventory:
 
     @staticmethod
     def _collect_frame_text(frame_id: int, children_map: dict[int, list[int]] | None = None, max_depth: int = 1) -> str:
-        from collections import deque
-        from .FrameTree import Frame
+        """Do not decode arbitrary option-subtree frames as text labels.
 
-        collected_text: list[str] = []
-        queued_frames = deque([(frame_id, 0)])
-        visited_frames: set[int] = set()
-
-        while queued_frames:
-            current_frame_id, depth = queued_frames.popleft()
-            if current_frame_id in visited_frames:
-                continue
-            visited_frames.add(current_frame_id)
-
-            # The old version probed eight attribute names (text/label/caption/...)
-            # that UIFrame does not expose, so it always collected nothing.  The
-            # frame's text comes from the decoded text label.
-            value = Frame.from_id(current_frame_id).text()
-            normalized_text = " ".join(value.split()).strip()
-            if normalized_text and normalized_text not in collected_text:
-                collected_text.append(normalized_text)
-
-            if children_map is None or depth >= max_depth:
-                continue
-
-            for child_frame_id in children_map.get(current_frame_id, []):
-                queued_frames.append((child_frame_id, depth + 1))
-
-        return " | ".join(collected_text)
+        The native text-label binding only accepts actual text-label frames. Salvage option
+        subtrees also contain generic containers and button frames, and decoding those can
+        dereference an invalid native type. Callers deliberately use the established option-order
+        fallback when text is unavailable.
+        """
+        _ = frame_id, children_map, max_depth
+        return ""
 
     @staticmethod
     def _collect_salvage_choice_option_text(
@@ -1022,7 +1003,6 @@ class Inventory:
                 after_action_label="materials confirm",
             ))
 
-        children_map = Inventory._build_frame_children_map()
         visible_entries_by_parent = Inventory._build_visible_frame_entry_map()
         option_parent_id, option_parent_children, option_entries = Inventory._get_salvage_choice_dialog_options(visible_entries_by_parent)
         raw_child_summary = ", ".join(
@@ -1069,12 +1049,6 @@ class Inventory:
 
         for order, entry in enumerate(option_entries, start=1):
             entry["order"] = order
-            path_root_frame_ids = list(entry["path_root_frame_ids"]) if "path_root_frame_ids" in entry else [int(entry["frame_id"])]
-            entry["text"] = Inventory._collect_salvage_choice_option_text(
-                path_root_frame_ids,
-                children_map=children_map,
-                max_depth=2,
-            )
 
         selectable_indices = [int(entry["order"]) if "order" in entry else 0 for entry in option_entries]
         option_summaries = ", ".join(

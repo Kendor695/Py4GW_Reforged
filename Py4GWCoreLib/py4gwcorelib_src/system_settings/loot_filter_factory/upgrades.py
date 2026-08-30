@@ -36,8 +36,16 @@ def _build() -> dict[str, list[tuple[str, str]]]:
     except Exception:
         return lists
 
+    from .model import canonical_upgrade_name
+
+    seen: set[tuple[str, str]] = set()
     for name, slot in mods_upgrades.UPGRADE_SLOT.items():
-        entry = (_pretty(name), name)
+        canonical = canonical_upgrade_name(name)
+        key = (canonical, str(slot))
+        if key in seen:
+            continue
+        seen.add(key)
+        entry = (_pretty(canonical), canonical)
         if slot == int(mods_core.Slot.Prefix):
             (lists["insignias"] if "Insignia" in name else lists["prefixes"]).append(entry)
         elif slot == int(mods_core.Slot.Suffix):
@@ -58,6 +66,9 @@ def lists() -> dict[str, list[tuple[str, str]]]:
 
 
 def display_name(internal: str) -> str:
+    from .model import canonical_upgrade_name
+
+    internal = canonical_upgrade_name(internal)
     for values in lists().values():
         for display, name in values:
             if name == internal:
@@ -69,7 +80,8 @@ def applied_upgrades(item_id: int) -> set[str]:
     """Internal names of the upgrades on an item. The set a filter's upgrade criteria match against."""
     try:
         from Py4GWCoreLib.Item import Item
+        from .model import canonical_upgrade_name
 
-        return {name for name, _slot in Item.Mods.GetUpgrades(item_id)}
+        return {canonical_upgrade_name(name) for name, _slot in Item.Mods.GetUpgrades(item_id)}
     except Exception:
         return set()

@@ -264,6 +264,123 @@ def _register_recolor_beacons() -> None:
     ))
 
 
+def _register_bags() -> None:
+    from .inventory import get_controller
+
+    document = "Widgets/System/Bags.json"
+    controller = get_controller()
+    register_spec(AccountCopySpec(
+        setting_id="items.bags",
+        label="Bags",
+        build_operations=lambda: (JsonPathOperation(
+            document,
+            "settings",
+            controller.bag_settings().to_dict(),
+            replace=True,
+        ),),
+        apply_runtime=controller.reload_account_settings,
+        json_documents=(document,),
+    ))
+
+
+def _register_identification() -> None:
+    from .identification import get_controller
+    from .identification import store as identification_store
+
+    document = "Widgets/System/Identification.ini"
+    controller = get_controller()
+
+    def _build():
+        config = controller.settings()
+        filters = identification_store.load_filters()
+        filter_sets = identification_store.load_filter_sets()
+        return (
+            SettingsSectionOperation(document, "general", {
+                "enabled": config.enabled,
+                "filter_set": config.filter_set_id,
+            }),
+            SettingsSectionOperation(document, "rarity", {
+                "white": config.id_whites,
+                "blue": config.id_blues,
+                "purple": config.id_purples,
+                "gold": config.id_golds,
+            }),
+            JsonPathOperation(
+                identification_store.FILTERS_DOCUMENT,
+                "filters",
+                [filter_definition.to_dict() for filter_definition in filters],
+                replace=True,
+            ),
+            JsonPathOperation(
+                identification_store.FILTERS_DOCUMENT,
+                "filter_sets",
+                [filter_set.to_dict() for filter_set in filter_sets],
+                replace=True,
+            ),
+        )
+
+    register_spec(AccountCopySpec(
+        setting_id="items.identification",
+        label="Identification",
+        build_operations=_build,
+        apply_runtime=controller.reload_account_settings,
+        settings_documents=(document,),
+        json_documents=(identification_store.FILTERS_DOCUMENT,),
+    ))
+
+
+def _register_salvage() -> None:
+    from .salvage import get_controller
+    from .salvage import store as salvage_store
+
+    document = "Widgets/System/Salvage.ini"
+    controller = get_controller()
+
+    def _build():
+        config = controller.settings()
+        filters = salvage_store.load_filters()
+        filter_sets = salvage_store.load_filter_sets()
+        return (
+            SettingsSectionOperation(document, "general", {
+                "enabled": config.enabled,
+                "filter_set": config.filter_set_id,
+            }),
+            SettingsSectionOperation(document, "rarity", {
+                "white": config.salvage_whites,
+                "blue": config.salvage_blues,
+                "purple": config.salvage_purples,
+                "gold": config.salvage_golds,
+            }),
+            SettingsSectionOperation(document, "actions", {
+                "common_materials": config.salvage_common_materials,
+                "rare_materials": config.salvage_rare_materials,
+                "matching_upgrades": config.salvage_matching_upgrades,
+                "auto_confirm_warning": config.auto_confirm_materials_warning,
+            }),
+            JsonPathOperation(
+                salvage_store.FILTERS_DOCUMENT,
+                "filters",
+                [filter_definition.to_dict() for filter_definition in filters],
+                replace=True,
+            ),
+            JsonPathOperation(
+                salvage_store.FILTERS_DOCUMENT,
+                "filter_sets",
+                [filter_set.to_dict() for filter_set in filter_sets],
+                replace=True,
+            ),
+        )
+
+    register_spec(AccountCopySpec(
+        setting_id="items.salvage",
+        label="Salvage",
+        build_operations=_build,
+        apply_runtime=controller.reload_account_settings,
+        settings_documents=(document,),
+        json_documents=(salvage_store.FILTERS_DOCUMENT,),
+    ))
+
+
 def register_default_specs() -> None:
     _register_native_listeners()
     _register_travel()
@@ -274,3 +391,6 @@ def register_default_specs() -> None:
     _register_skillbar_plus()
     _register_agent_recolor()
     _register_recolor_beacons()
+    _register_bags()
+    _register_identification()
+    _register_salvage()

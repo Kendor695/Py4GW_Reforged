@@ -1,17 +1,21 @@
-"""Shared inventory/bags item monitor for Colorize.
+"""Shared inventory/bags item monitor for Colorize and item operations.
 
-Both visible sources are peers. There is deliberately no legacy special ``I`` mode and no nested
-frame-prefix search here; the current FrameTree exposes direct accessors for both windows.
+The default scan remains the four normal inventory bags for Colorize. Callers performing an item
+operation can pass the explicit Bags scope, including equipment, materials, and Xunlai tabs. There
+is deliberately no legacy special ``I`` mode and no nested frame-prefix search here; the current
+FrameTree exposes direct accessors for each supported window.
 """
 
 from dataclasses import dataclass
 import time
+from collections.abc import Iterable
 
 import PyInventory
 
 from Py4GWCoreLib import Item, UIManager
 from Py4GWCoreLib.FrameTree import Frame
-from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, Bags
+from Py4GWCoreLib.UIManager import XunlaiStorageWindow
+from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, INVENTORY_WITH_EQUIPMENT_BAGS, Bags
 from Py4GWCoreLib.enums_src.UI_enums import WindowID
 
 
@@ -31,20 +35,29 @@ class InventoryMonitor:
     def __init__(self, refresh_interval: float = 0.25) -> None:
         self._refresh_interval = float(refresh_interval)
         self._last_scan = 0.0
-        self._last_visibility: tuple[bool, bool] | None = None
+        self._last_visibility: tuple[bool, bool, bool] | None = None
+        self._last_bags: tuple[int, ...] | None = None
         self._cached: list[InventorySlot] = []
 
-    def scan(self) -> list[InventorySlot]:
+    def scan(self, bags: Iterable[Bags] = INVENTORY_BAGS, force: bool = False) -> list[InventorySlot]:
+        requested_bags = tuple(bags)
+        bag_ids = tuple(int(bag.value) for bag in requested_bags)
         bags_visible = bool(UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags))
         inventory_visible = bool(UIManager.IsWindowVisible(WindowID.WindowID_Inventory))
-        visibility = (bags_visible, inventory_visible)
+        storage_visible = bool(XunlaiStorageWindow.IsOpen())
+        active_storage_bag = XunlaiStorageWindow.GetActiveTabBag() if storage_visible else None
+        visibility = (bags_visible, inventory_visible, storage_visible)
         now = time.monotonic()
-        if (now - self._last_scan) < self._refresh_interval and visibility == self._last_visibility:
+        if (not force
+                and (now - self._last_scan) < self._refresh_interval
+                and visibility == self._last_visibility
+                and bag_ids == self._last_bags):
             return self._cached
         self._last_scan = now
         self._last_visibility = visibility
+        self._last_bags = bag_ids
         output: list[InventorySlot] = []
-        for bag in INVENTORY_BAGS:
+        for bag in requested_bags:
             try:
                 bag_instance = PyInventory.Bag(int(bag.value), bag.name)
                 for item in bag_instance.GetItems() or []:
@@ -56,8 +69,18 @@ class InventoryMonitor:
                         continue
                     _, rarity = Item.Rarity.GetRarity(item_id)
                     slot = int(item.get("slot", -1) if isinstance(item, dict) else item.slot)
-                    bag_frame = Frame.bag_slot(bag, slot) if bags_visible else None
-                    inventory_frame = Frame.inventory_bag_slot(bag, slot) if inventory_visible else None
+                    bag_frame = None
+                    inventory_frame = None
+                    if bag in INVENTORY_WITH_EQUIPMENT_BAGS:
+                        bag_frame = Frame.bag_slot(bag, slot) if bags_visible else None
+                        if bag in INVENTORY_WITH_EQUIPMENT_BAGS and inventory_visible:
+                            inventory_frame = Frame.inventory_bag_slot(bag, slot)
+                    elif storage_visible and bag == active_storage_bag:
+                        if bag == Bags.MaterialStorage:
+                            bag_frame = Frame.material_slot(slot, max_tabs=XunlaiStorageWindow.MAX_TABS,
+                                                            raw_slot=True)
+                        else:
+                            bag_frame = Frame.storage_slot(bag, slot)
                     output.append(InventorySlot(
                         item_id=item_id,
                         rarity=rarity,
@@ -73,9 +96,9 @@ class InventoryMonitor:
         self._cached = output
         return self._cached
 
-    def hovered_slot(self) -> InventorySlot | None:
+    def hovered_slot(self, bags: Iterable[Bags] = INVENTORY_BAGS) -> InventorySlot | None:
         """Return the visible slot beneath the mouse from this monitor's own snapshot."""
-        for entry in self.scan():
+        for entry in self.scan(bags):
             for frame in (entry.bag_frame, entry.inventory_frame):
                 if frame is not None and frame.is_mouse_over():
                     return entry

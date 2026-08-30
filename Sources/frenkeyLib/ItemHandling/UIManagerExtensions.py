@@ -9,11 +9,11 @@ from Py4GWCoreLib.FrameTree import Frame, FrameId
 
 class UIManagerExtensions:
     @staticmethod
-    def _frame_exists(frame) -> bool:
+    def _frame_exists(frame: Frame | None) -> bool:
         return frame is not None and frame.is_usable
 
     @staticmethod
-    def IsElementVisible(frame) -> bool:
+    def IsElementVisible(frame: Frame | None) -> bool:
         """
         Check if a specific frame is open in the UI.
 
@@ -26,15 +26,15 @@ class UIManagerExtensions:
         return UIManagerExtensions._frame_exists(frame)
 
     @staticmethod
-    def _find_first_visible_frame(frame_ids: list[int]) -> int:
-        for frame_id in frame_ids:
-            if UIManagerExtensions._frame_exists(frame_id):
-                return frame_id
-        return 0
+    def _find_first_visible_frame(frames: list[Frame]) -> Frame | None:
+        for frame in frames:
+            if UIManagerExtensions._frame_exists(frame):
+                return frame
+        return None
 
     @staticmethod
-    def _click_frame(frame) -> bool:
-        if not UIManagerExtensions._frame_exists(frame):
+    def _click_frame(frame: Frame | None) -> bool:
+        if frame is None or not UIManagerExtensions._frame_exists(frame):
             return False
 
         frame.click()
@@ -42,7 +42,7 @@ class UIManagerExtensions:
         return True
 
     @staticmethod
-    def _get_confirm_salvage_window_frame_id() -> int:
+    def _get_confirm_salvage_window_frame_id() -> Frame | None:
         for candidate in (
             Frame(FrameId.ScreenFrame.C6.LesserSalvageWindow.SalvageWithLesserKitConfirm),
             Frame(FrameId.ScreenFrame.C6.SalvageMaterialsDialog.YesButton),
@@ -50,7 +50,7 @@ class UIManagerExtensions:
         ):
             if candidate.exists:
                 return candidate
-        return 0
+        return None
 
     @staticmethod
     def _get_salvage_option_entries():
@@ -62,54 +62,30 @@ class UIManagerExtensions:
             return []
     
     @staticmethod
-    def GetSalvageOptions() -> dict[SalvageMode, int]:
-        options: dict[SalvageMode, int] = {}
+    def GetSalvageOptions() -> dict[SalvageMode, Frame]:
+        options: dict[SalvageMode, Frame] = {}
 
-        option_entries = UIManagerExtensions._get_salvage_option_entries()
-        if option_entries:
-            for order, entry in enumerate(option_entries, start=1):
-                entry["order"] = order
-                path_root_frame_ids = list(entry["path_root_frame_ids"]) if "path_root_frame_ids" in entry else [int(entry["frame_id"])]
-                entry["text"] = Inventory._collect_salvage_choice_option_text(
-                    path_root_frame_ids,
-                    children_map=Inventory._build_frame_children_map(),
-                    max_depth=2,
-                )
+        # These mode-specific aliases are the established salvage UI contract: Option1 is
+        # Prefix, Option2 is Suffix, Option3 is Inscription, and Option4 is Materials.
+        # Do not collapse all upgrade modes into the first visible row. A live dialog can
+        # contain both an insignia and a rune, where doing so extracts the wrong component.
+        prefix_option = Frame(FrameId.SalvageWindow.Options.Option1)
+        suffix_option = Frame(FrameId.SalvageWindow.Options.Option2)
+        inscription_option = Frame(FrameId.SalvageWindow.Options.Option3)
+        materials_option = Frame(FrameId.SalvageWindow.Options.Option4)
 
-            material_entry, _ = Inventory._choose_salvage_choice_dialog_option(option_entries, strategy=0)
-            upgrade_entry, _ = Inventory._choose_salvage_choice_dialog_option(option_entries, strategy=1)
+        if prefix_option.exists:
+            options[SalvageMode.Prefix] = prefix_option
 
-            if material_entry is not None:
-                material_frame_id = int(material_entry["frame_id"])
-                options[SalvageMode.LesserCraftingMaterials] = material_frame_id
-                options[SalvageMode.RareCraftingMaterials] = material_frame_id
+        if suffix_option.exists:
+            options[SalvageMode.Suffix] = suffix_option
 
-            if upgrade_entry is not None:
-                upgrade_frame_id = int(upgrade_entry["frame_id"])
-                options[SalvageMode.Prefix] = upgrade_frame_id
-                options[SalvageMode.Suffix] = upgrade_frame_id
-                options[SalvageMode.Inscription] = upgrade_frame_id
+        if inscription_option.exists:
+            options[SalvageMode.Inscription] = inscription_option
 
-            if options:
-                return options
-
-        salvage_window_mod_one_id = Frame(FrameId.SalvageWindow.Options.Option1)
-        salvage_window_mod_two_id = Frame(FrameId.SalvageWindow.Options.Option2)
-        salvage_window_mod_three_id = Frame(FrameId.SalvageWindow.Options.Option3)
-        salvage_window_materials_id = Frame(FrameId.SalvageWindow.Options.Option4)
-
-        if salvage_window_mod_one_id.exists:
-            options[SalvageMode.Prefix] = salvage_window_mod_one_id
-
-        if salvage_window_mod_two_id.exists:
-            options[SalvageMode.Suffix] = salvage_window_mod_two_id
-
-        if salvage_window_mod_three_id.exists:
-            options[SalvageMode.Inscription] = salvage_window_mod_three_id
-
-        if salvage_window_materials_id.exists:
-            options[SalvageMode.LesserCraftingMaterials] = salvage_window_materials_id
-            options[SalvageMode.RareCraftingMaterials] = salvage_window_materials_id
+        if materials_option.exists:
+            options[SalvageMode.LesserCraftingMaterials] = materials_option
+            options[SalvageMode.RareCraftingMaterials] = materials_option
 
         return options
     
@@ -209,7 +185,7 @@ class UIManagerExtensions:
 
     @staticmethod
     def IsConfirmLesserMaterialsWindowOpen() -> bool:
-        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() != 0
+        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() is not None
 
     @staticmethod
     def ConfirmLesserSalvage():
@@ -231,7 +207,7 @@ class UIManagerExtensions:
         
     @staticmethod
     def ConfirmModMaterialSalvageVisible():
-        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() != 0
+        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() is not None
         
     @staticmethod
     def CancelLesserSalvage():
@@ -240,8 +216,6 @@ class UIManagerExtensions:
     
     @staticmethod
     def IsSalvageWindowOpen() -> bool:
-        if Inventory._get_salvage_choice_confirm_frame_id() != 0:
-            return True
         return Frame(FrameId.SalvageWindow.Button).exists
     
     @staticmethod

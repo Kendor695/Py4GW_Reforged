@@ -32,6 +32,41 @@ from dataclasses import replace
 MATCH_ALL = "all"
 MATCH_ANY = "any"
 
+# The game exposes two internal IDs for the same user-facing Minor Vigor rune.
+# Keep the alias here because presentation and evaluation must share one identity,
+# including filters saved before the duplicate was merged in the UI.
+_UPGRADE_ALIASES = {
+    "RuneOfMinorVigor2": "RuneOfMinorVigor",
+}
+
+
+def canonical_upgrade_name(name: str) -> str:
+    """Return the canonical identity for an internal upgrade name."""
+    return _UPGRADE_ALIASES.get(str(name), str(name))
+
+
+@dataclass(frozen=True)
+class ModifierCriterion:
+    """One declarative ``Item.Mods.HasMod`` test.
+
+    ``values`` are match-or-better thresholds in the same order accepted by
+    ``Item.Mods.HasMod``. ``subtype`` stores the numeric value of the relevant
+    enum (attribute, damage type, ailment, and so on).
+    """
+
+    identifier: int
+    subtype: int | None = None
+    values: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class UpgradeCriterion:
+    """One declarative test against a named applied upgrade."""
+
+    name: str
+    slot: int | None = None
+    maxed: bool = False
+
 
 @dataclass(frozen=True)
 class Filter:
@@ -77,8 +112,9 @@ class Filter:
 
     # -- the MOD evaluations. --
     #
-    # Deliberately only three, because only three are *there*. A drop is unidentified, and the
-    # dump of one (`docs/items/modifiers/generated/single-item-dump.txt`) shows exactly what that means:
+    # The three named shortcuts below describe what an unidentified drop exposes. The generic
+    # ``modifiers`` and ``upgrades`` fields below extend the same vocabulary to identified items;
+    # they are still declarative Item.Mods criteria, not a second rule system.
     #
     #     Chaos Dmg: 11-21 (Requires 11 Illusion Magic)
     #       0x2798  arg1=1  arg2=11   Requirement 11 (IllusionMagic)
@@ -89,9 +125,6 @@ class Filter:
     # insignias and inscriptions are NOT visible before identifying, so filtering on them could
     # never fire -- they were dead controls and are gone.
     #
-    # Features that evaluate identified items (salvage, mod hunting) extend this vocabulary with
-    # upgrade-by-slot-and-name evaluations; the model and matcher are built to grow additively.
-
     #: Requirement **at most** -- match-or-better, and the direction is not ours to choose:
     #: `Requirement` is the one mod in the table declaring `better_low=True`.
     max_requirement: int | None = None
@@ -107,6 +140,11 @@ class Filter:
     #: Damage types, any-of -- Blunt, Slashing, Chaos, Fire ... (the mod's subtype enum).
     damage_types: tuple[int, ...] = ()
 
+    #: Full Item.Mods effect tests, beyond the unidentified-drop shortcuts above.
+    modifiers: tuple[ModifierCriterion, ...] = ()
+    #: Named upgrades, optionally constrained by physical slot and maxed value.
+    upgrades: tuple[UpgradeCriterion, ...] = ()
+
     def is_empty(self) -> bool:
         """A filter with no criteria at all. It matches nothing, rather than everything."""
         return not (
@@ -114,6 +152,7 @@ class Filter:
             or self.name_contains or self.rarities
             or self.max_requirement is not None or self.min_value is not None
             or self.min_damage is not None or self.damage_types
+            or self.modifiers or self.upgrades
         )
 
     def renamed(self, name: str) -> "Filter":
@@ -132,6 +171,16 @@ class Filter:
             "requirement_attribute": self.requirement_attribute,
             "min_value": self.min_value, "min_damage": self.min_damage,
             "damage_types": list(self.damage_types),
+            "modifiers": [
+                {"identifier": criterion.identifier,
+                 "subtype": criterion.subtype,
+                 "values": list(criterion.values)}
+                for criterion in self.modifiers
+            ],
+            "upgrades": [
+                {"name": criterion.name, "slot": criterion.slot, "maxed": criterion.maxed}
+                for criterion in self.upgrades
+            ],
         }
 
     @staticmethod
@@ -145,6 +194,32 @@ class Filter:
         mode = str(raw.get("mode", MATCH_ALL))
         max_req = raw.get("max_requirement")
         min_val = raw.get("min_value")
+
+        modifiers: list[ModifierCriterion] = []
+        for value in raw.get("modifiers", ()) or ():
+            if not isinstance(value, dict):
+                continue
+            try:
+                identifier = int(value["identifier"])
+                subtype = None if value.get("subtype") is None else int(value["subtype"])
+                thresholds = tuple(int(v) for v in value.get("values", ()) or ())
+            except (KeyError, TypeError, ValueError):
+                continue
+            modifiers.append(ModifierCriterion(identifier, subtype, thresholds))
+
+        upgrades: list[UpgradeCriterion] = []
+        for value in raw.get("upgrades", ()) or ():
+            if not isinstance(value, dict):
+                continue
+            name = str(value.get("name", "")).strip()
+            if not name:
+                continue
+            try:
+                slot = None if value.get("slot") is None else int(value["slot"])
+            except (TypeError, ValueError):
+                slot = None
+            upgrades.append(UpgradeCriterion(name, slot, bool(value.get("maxed", False))))
+
         return Filter(
             id=str(raw.get("id", "")),
             name=str(raw.get("name", "New filter")),
@@ -160,6 +235,8 @@ class Filter:
                                    else int(raw["requirement_attribute"])),
             min_damage=(None if raw.get("min_damage") is None else int(raw["min_damage"])),
             damage_types=ints("damage_types"),
+            modifiers=tuple(modifiers),
+            upgrades=tuple(upgrades),
         )
 
 

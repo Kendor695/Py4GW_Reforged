@@ -802,6 +802,16 @@ class Frame:
         return cls._under(FrameId.InventoryWindow,
                           cls._bag_offset(bag), 2 + int(slot))
 
+    @staticmethod
+    def _storage_offset(bag: Any) -> int:
+        """Map a storage bag to its Xunlai content-pane offset."""
+        from ..enums_src.Item_enums import Bags
+
+        value = getattr(bag, "value", bag)
+        if int(value) == int(Bags.MaterialStorage.value):
+            return 14
+        return int(value) - int(Bags.Storage1.value)
+
     @classmethod
     def storage_tab(cls, bag: Any, reversed_order: bool = False) -> "Frame":
         """Xunlai storage tab for `bag`.
@@ -809,7 +819,7 @@ class Frame:
         `reversed_order` selects the engine's descending tab codes, which the
         tab strip uses while the content panes count up.
         """
-        offset = cls._bag_offset(bag)
+        offset = cls._storage_offset(bag)
         code = (0xFFFFFFFF - offset) if reversed_order else offset
         return cls._under(FrameId.XunlaiWindow.StorageFrame, code)
 
@@ -817,7 +827,7 @@ class Frame:
     def storage_slot(cls, bag: Any, slot: int) -> "Frame":
         """Xunlai storage slot; `slot` is 0-based."""
         return cls._under(FrameId.XunlaiWindow.StorageFrame,
-                          cls._bag_offset(bag), 2 + int(slot))
+                          cls._storage_offset(bag), 2 + int(slot))
 
     @classmethod
     def material_slot(cls, slot: int, max_tabs: int = 5, raw_slot: bool = False) -> "Frame":

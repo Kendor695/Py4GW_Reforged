@@ -26,6 +26,10 @@ from .model import MATCH_ALL
 from .model import MATCH_ANY
 from .model import Filter
 from .model import FilterSet
+from .model import ModifierCriterion
+from .model import UpgradeCriterion
+from .model import canonical_upgrade_name
+from . import upgrades as upgrade_data
 
 #: `text_disabled` renders too dim to read; a mid gray keeps secondary text legible.
 GRAY = (0.66, 0.67, 0.70, 1.0)
@@ -309,6 +313,122 @@ def _damage_type_source() -> list[tuple[str, int]]:
         return []
 
 
+def _modifier_source() -> list[tuple[str, int]]:
+    """Every current ``ModifierIdentifier`` with a known Item.Mods effect label."""
+    try:
+        from Py4GWCoreLib import mods_core
+        from Py4GWCoreLib.mods_types import ModifierIdentifier
+
+        output = []
+        for identifier in ModifierIdentifier:
+            if int(identifier) in (0, 0xFFFF):
+                continue
+            label = mods_core.effect_name(int(identifier))
+            if label and not label.lower().startswith(("unknown", "empty")):
+                output.append((label, int(identifier)))
+        return sorted(output, key=lambda entry: entry[0].lower())
+    except Exception:
+        return []
+
+
+def _upgrade_source() -> list[tuple[str, str]]:
+    output: list[tuple[str, str]] = []
+    for values in upgrade_data.lists().values():
+        output.extend(values)
+    return sorted({name: internal for name, internal in output}.items(), key=lambda entry: entry[0].lower())
+
+
+def _draw_modifier_criteria(filter: Filter, fid: str) -> tuple[ModifierCriterion, ...]:
+    """Edit the complete current Item.Mods effect vocabulary in a compact advanced section."""
+    criteria = list(filter.modifiers)
+    source = _modifier_source()
+    lookup = {value: display for display, value in source}
+    changed = False
+    for index, criterion in enumerate(list(criteria)):
+        label = lookup.get(criterion.identifier, "modifier %d" % criterion.identifier)
+        PyImGui.text("%s" % label)
+        PyImGui.same_line(0, 6)
+        if PyImGui.small_button("remove##mod_rm_%s_%d" % (fid, index)):
+            criteria.pop(index)
+            changed = True
+            continue
+        PyImGui.same_line(0, 6)
+        typed = PyImGui.input_int("threshold##mod_value_%s_%d" % (fid, index),
+                                  int(criterion.values[0]) if criterion.values else 0)
+        values = criterion.values
+        if typed != (values[0] if values else 0):
+            values = (typed,)
+            criteria[index] = ModifierCriterion(criterion.identifier, criterion.subtype, values)
+            changed = True
+        PyImGui.same_line(0, 6)
+        has_subtype = criterion.subtype is not None
+        use_subtype = PyImGui.checkbox("subtype##mod_subtype_%s_%d" % (fid, index), has_subtype)
+        if use_subtype != has_subtype:
+            criteria[index] = ModifierCriterion(criterion.identifier, 0 if use_subtype else None, values)
+            changed = True
+        if use_subtype:
+            current_criterion = criteria[index]
+            PyImGui.same_line(0, 6)
+            subtype = PyImGui.input_int("##mod_subtype_value_%s_%d" % (fid, index),
+                                        int(current_criterion.subtype or 0))
+            if subtype != int(current_criterion.subtype or 0):
+                criteria[index] = ModifierCriterion(current_criterion.identifier, subtype,
+                                                    current_criterion.values)
+                changed = True
+
+    names = [display for display, _identifier in source]
+    selected = int(_state.get("new_modifier_%s" % fid, 0))
+    if names:
+        selected = max(0, min(selected, len(names) - 1))
+        selected = PyImGui.combo("Add modifier##mod_add_%s" % fid, selected, names)
+        _state["new_modifier_%s" % fid] = selected
+        if PyImGui.small_button("Add##mod_add_button_%s" % fid):
+            identifier = source[selected][1]
+            if not any(item.identifier == identifier for item in criteria):
+                criteria.append(ModifierCriterion(identifier))
+                changed = True
+    if changed:
+        return tuple(criteria)
+    return filter.modifiers
+
+
+def _draw_upgrade_criteria(filter: Filter, fid: str) -> tuple[UpgradeCriterion, ...]:
+    criteria = list(filter.upgrades)
+    source = _upgrade_source()
+    lookup = {canonical_upgrade_name(internal): display for display, internal in source}
+    changed = False
+    slot_names = ["Any slot", "Prefix", "Suffix", "Inscription", "Rune", "Insignia"]
+    for index, criterion in enumerate(list(criteria)):
+        PyImGui.text(lookup.get(canonical_upgrade_name(criterion.name), criterion.name))
+        PyImGui.same_line(0, 6)
+        if PyImGui.small_button("remove##up_rm_%s_%d" % (fid, index)):
+            criteria.pop(index)
+            changed = True
+            continue
+        slot_index = 0 if criterion.slot is None else max(0, min(int(criterion.slot) + 1, len(slot_names) - 1))
+        picked_slot = PyImGui.combo("slot##up_slot_%s_%d" % (fid, index), slot_index, slot_names)
+        slot = None if picked_slot == 0 else picked_slot - 1
+        maxed = PyImGui.checkbox("maxed##up_maxed_%s_%d" % (fid, index), criterion.maxed)
+        if slot != criterion.slot or maxed != criterion.maxed:
+            criteria[index] = UpgradeCriterion(criterion.name, slot, maxed)
+            changed = True
+
+    names = [display for display, _name in source]
+    selected = int(_state.get("new_upgrade_%s" % fid, 0))
+    if names:
+        selected = max(0, min(selected, len(names) - 1))
+        selected = PyImGui.combo("Add upgrade##up_add_%s" % fid, selected, names)
+        _state["new_upgrade_%s" % fid] = selected
+        if PyImGui.small_button("Add##up_add_button_%s" % fid):
+            name = source[selected][1]
+            if not any(item.name == name for item in criteria):
+                criteria.append(UpgradeCriterion(name))
+                changed = True
+    if changed:
+        return tuple(criteria)
+    return filter.upgrades
+
+
 def _draw_criteria(filter: Filter, index: int) -> Filter | None:
     """Returns a replacement filter when something changed, else None."""
     fid = filter.id
@@ -420,11 +540,6 @@ def _draw_criteria(filter: Filter, index: int) -> Filter | None:
         ImGui.show_tooltip("Match-or-better: this value or more. Higher is better.")
 
     # -- the mod criteria --
-    #
-    # Three, because a drop is unidentified and three is what it carries: the damage range, the
-    # requirement, the damage type. There is no upgrade section: prefixes, suffixes, runes,
-    # insignias and inscriptions are not visible before identifying, so those controls could
-    # never do anything.
     PyImGui.separator()
     PyImGui.text_colored("Mods. A drop is unidentified, so these are all it shows.", GRAY)
 
@@ -469,6 +584,24 @@ def _draw_criteria(filter: Filter, index: int) -> Filter | None:
                 damage_types = (damage_types + (value,)) if not on                     else tuple(v for v in damage_types if v != value)
                 changed = True
 
+    modifiers = filter.modifiers
+    if PyImGui.collapsing_header("All Item.Mods effects  (%d)###mods_%s" % (len(modifiers), fid)):
+        PyImGui.text_wrapped("Advanced: every current ModifierIdentifier is available. Thresholds use "
+                             "the Item.Mods match-or-better direction; for requirements, 9 includes 9 and lower.")
+        edited_modifiers = _draw_modifier_criteria(filter, fid)
+        if edited_modifiers != modifiers:
+            modifiers = edited_modifiers
+            changed = True
+
+    upgrades = filter.upgrades
+    if PyImGui.collapsing_header("Applied upgrades  (%d)###upgrades_%s" % (len(upgrades), fid)):
+        PyImGui.text_wrapped("Advanced: match named prefixes, suffixes, runes, insignias, or inscriptions "
+                             "reported by Item.Mods. Use the optional slot and maxed checks when needed.")
+        edited_upgrades = _draw_upgrade_criteria(filter, fid)
+        if edited_upgrades != upgrades:
+            upgrades = edited_upgrades
+            changed = True
+
     if not changed:
         return None
     return Filter(
@@ -478,6 +611,7 @@ def _draw_criteria(filter: Filter, index: int) -> Filter | None:
         dye_colors=values["dye_colors"], salvages_into=values["salvages_into"],
         max_requirement=max_req, requirement_attribute=req_attribute,
         min_value=min_value, min_damage=min_damage, damage_types=damage_types,
+        modifiers=modifiers, upgrades=upgrades,
     )
 
 

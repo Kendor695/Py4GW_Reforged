@@ -24,6 +24,8 @@ from .model import MATCH_ALL
 from .model import MATCH_ANY
 from .model import Filter
 from .model import FilterSet
+from .model import ModifierCriterion
+from .model import UpgradeCriterion
 from .store import filter_by_id
 from .store import filter_set_by_id
 from .store import filter_set_by_name
@@ -38,7 +40,8 @@ from .store import save_filter_sets
 from .store import save_filters
 
 __all__ = [
-    "MATCH_ALL", "MATCH_ANY", "Filter", "FilterSet", "any_match", "evaluate", "filter_by_id",
+    "MATCH_ALL", "MATCH_ANY", "Filter", "FilterSet", "ModifierCriterion", "UpgradeCriterion",
+    "any_match", "evaluate", "filter_by_id",
     "filter_set_by_id", "filter_set_by_name", "filters_in_set", "legacy_mark_entries",
     "load_filter_sets", "load_filters", "matches", "matching_filters", "next_filter_id",
     "next_filter_set_id", "resolve_filter_set_selection", "save_filter_sets", "save_filters",

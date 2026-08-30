@@ -46,6 +46,7 @@ _VALUES = {6: 750, 7: 100}
 class _FakeModifierIdentifier:
     Damage = 1
     AttributeRequirement = 2
+    SunderingEffect = 3
 
 
 class _FakeMods:
@@ -59,7 +60,23 @@ class _FakeMods:
         # of this fixture is that the matcher must not depend on that path.
         if any(callable(value) for value in values):
             raise TypeError("Item.Mods.HasMod accepts declarative subtype and numeric threshold values only")
-        return False
+        return int(item_id) == 8 and int(mod) == 3
+
+    @staticmethod
+    def GetSubtype(item_id, mod):
+        return 7 if int(item_id) == 8 and int(mod) == 3 else None
+
+    @staticmethod
+    def GetUpgrades(item_id):
+        if int(item_id) in (9, 10):
+            return [("Sundering", 1)]
+        if int(item_id) == 11:
+            return [("RuneOfMinorVigor2", 5)]
+        return []
+
+    @staticmethod
+    def IsMaxed(item_id, name):
+        return int(item_id) == 10 and str(name) == "Sundering"
 
 
 class _FakeItem:
@@ -98,6 +115,21 @@ CASES = [
      [("damage 13 or better", True), ("worth 500 or more", False)]),
     ("ANY mode: one pass is enough", model.Filter(mode=model.MATCH_ANY, min_damage=13, min_value=500), 7,
      True, [("damage 13 or better", True), ("worth 500 or more", False)]),
+    ("full modifier criterion uses Item.Mods", model.Filter(
+        modifiers=(model.ModifierCriterion(3, subtype=7),)), 8, True,
+     [("modifier 3 [7]", True)]),
+    ("named upgrade matches its physical slot", model.Filter(
+        upgrades=(model.UpgradeCriterion("Sundering", slot=1),)), 9, True,
+     [("upgrade Sundering (slot 1)", True)]),
+    ("named upgrade maxed check is declarative", model.Filter(
+        upgrades=(model.UpgradeCriterion("Sundering", slot=1, maxed=True),)), 10, True,
+     [("upgrade Sundering (slot 1) (maxed)", True)]),
+    ("Minor Vigor alias matches canonical name", model.Filter(
+        upgrades=(model.UpgradeCriterion("RuneOfMinorVigor"),)), 11, True,
+     [("upgrade RuneOfMinorVigor", True)]),
+    ("saved Minor Vigor alias remains compatible", model.Filter(
+        upgrades=(model.UpgradeCriterion("RuneOfMinorVigor2"),)), 11, True,
+     [("upgrade RuneOfMinorVigor2", True)]),
 ]
 
 failures = 0
@@ -111,6 +143,16 @@ for label, candidate, item_id, expected_verdict, expected_breakdown in CASES:
         print("      filter:   %s" % candidate)
         print("      expected: verdict=%s breakdown=%s" % (expected_verdict, expected_breakdown))
         print("      observed: verdict=%s breakdown=%s" % (verdict, breakdown))
+
+round_trip = model.Filter(
+    mode=model.MATCH_ALL,
+    modifiers=(model.ModifierCriterion(3, subtype=7, values=(9,)),),
+    upgrades=(model.UpgradeCriterion("Sundering", slot=1, maxed=True),),
+)
+round_trip_ok = model.Filter.from_dict(round_trip.to_dict()) == round_trip
+print("[%s] full Item.Mods criteria survive persistence" % ("PASS" if round_trip_ok else "FAIL"))
+if not round_trip_ok:
+    failures += 1
 
 print("=" * 68)
 print("%d case(s) failed" % failures)

@@ -39,11 +39,13 @@ MODULE_ICON = "Assets\\Textures\\Module_Icons\\Py4GW.png"
 
 _controller = get_controller()
 _inventory_controller = None
+_identification_controller = None
+_salvage_controller = None
 _applied = False
 
 
 def draw() -> None:
-    global _applied, _inventory_controller
+    global _applied, _inventory_controller, _identification_controller, _salvage_controller
     try:
         if not _applied:
             # Register the persisted options with the native side once (idempotent thereafter).
@@ -136,6 +138,22 @@ def draw() -> None:
                 _inventory_controller.boot()
             except Exception as inventory_error:
                 PySystem.Console.Log(MODULE_NAME, "Items migration boot failed: %s" % inventory_error,
+                                     PySystem.Console.MessageType.Error)
+            try:
+                from Py4GWCoreLib.py4gwcorelib_src.system_settings.identification import get_controller as _id_get
+
+                _identification_controller = _id_get()
+                _identification_controller.boot()
+            except Exception as identification_error:
+                PySystem.Console.Log(MODULE_NAME, "Identification boot failed: %s" % identification_error,
+                                     PySystem.Console.MessageType.Error)
+            try:
+                from Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage import get_controller as _salvage_get
+
+                _salvage_controller = _salvage_get()
+                _salvage_controller.boot()
+            except Exception as salvage_error:
+                PySystem.Console.Log(MODULE_NAME, "Salvage boot failed: %s" % salvage_error,
                                      PySystem.Console.MessageType.Error)
             # Register the chat-command framework built-ins (/help) once, now that native is up.
             try:

@@ -14,7 +14,66 @@ Two levels above that:
 """
 
 from .model import MATCH_ANY
+from .model import canonical_upgrade_name
 from .model import Filter
+from .model import ModifierCriterion
+from .model import UpgradeCriterion
+
+
+def _modifier_matches(item_id: int, criterion: ModifierCriterion) -> bool:
+    """Evaluate one full-class modifier criterion through ``Item.Mods``."""
+    try:
+        from Py4GWCoreLib.Item import Item
+
+        if not Item.Mods.HasMod(item_id, criterion.identifier, *criterion.values):
+            return False
+        if criterion.subtype is None:
+            return True
+        subtype = Item.Mods.GetSubtype(item_id, criterion.identifier)
+        return subtype is not None and int(subtype) == int(criterion.subtype)
+    except Exception:
+        return False
+
+
+def _upgrade_matches(item_id: int, criterion: UpgradeCriterion) -> bool:
+    """Match a named upgrade by name, optional slot, and optional maxed state."""
+    try:
+        from Py4GWCoreLib.Item import Item
+
+        for name, slot in Item.Mods.GetUpgrades(item_id):
+            if canonical_upgrade_name(name) != canonical_upgrade_name(criterion.name):
+                continue
+            if criterion.slot is not None and int(slot) != int(criterion.slot):
+                continue
+            if criterion.maxed and not Item.Mods.IsMaxed(item_id, name):
+                continue
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def _modifier_label(criterion: ModifierCriterion) -> str:
+    try:
+        from Py4GWCoreLib import mods_core
+
+        label = mods_core.effect_name(criterion.identifier)
+    except Exception:
+        label = "modifier %d" % criterion.identifier
+    if criterion.values:
+        label += " %s+" % "/".join(str(value) for value in criterion.values)
+    if criterion.subtype is not None:
+        label += " [%d]" % criterion.subtype
+    return label
+
+
+def _upgrade_label(criterion: UpgradeCriterion) -> str:
+    label = "upgrade %s" % criterion.name
+    if criterion.slot is not None:
+        label += " (slot %d)" % criterion.slot
+    if criterion.maxed:
+        label += " (maxed)"
+    return label
 
 
 def evaluate(filter: Filter, item_id: int, model_id: int | None = None) -> tuple[bool, list[tuple[str, bool]]]:
@@ -144,6 +203,12 @@ def evaluate(filter: Filter, item_id: int, model_id: int | None = None) -> tuple
             value = 0
         # Match-or-better, because higher is better for value.
         results.append(("worth %d or more" % filter.min_value, value >= filter.min_value))
+
+    for criterion in filter.modifiers:
+        results.append((_modifier_label(criterion), _modifier_matches(item_id, criterion)))
+
+    for criterion in filter.upgrades:
+        results.append((_upgrade_label(criterion), _upgrade_matches(item_id, criterion)))
 
     if not results:
         return False, results

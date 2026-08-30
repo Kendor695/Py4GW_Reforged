@@ -780,26 +780,34 @@ class XunlaiStorageWindow:
     @staticmethod
     @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabFrame")
     def GetActiveTabFrame() -> Optional[Frame]:
+        """Return the visible Xunlai content frame; hidden tab contents still exist in the tree."""
         for bag in STORAGE_BAGS:
             tab_frame = XunlaiStorageWindow.GetTabContentFrame(bag)
-            if tab_frame and tab_frame.exists:
+            if tab_frame and tab_frame.is_visible:
                 return tab_frame
         
         material_tab_frame = XunlaiStorageWindow.GetTabContentFrame(Bags.MaterialStorage)
-        if material_tab_frame and material_tab_frame.exists:
+        if material_tab_frame and material_tab_frame.is_visible:
             return material_tab_frame
         
         return None
     
     @staticmethod
-    @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabBag")
-    def GetActiveTabBag() -> Optional[Bags]:
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetVisibleTabBags")
+    def GetVisibleTabBags() -> list[Bags]:
+        """Return every storage tab whose content frame is currently visible."""
+        visible: list[Bags] = []
         for bag in [*STORAGE_BAGS, Bags.MaterialStorage]:
             tab_frame = XunlaiStorageWindow.GetTabContentFrame(bag)
-            if tab_frame and tab_frame.exists:
-                return bag
-        
-        return None
+            if tab_frame and tab_frame.is_visible:
+                visible.append(bag)
+        return visible
+
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabBag")
+    def GetActiveTabBag() -> Optional[Bags]:
+        visible = XunlaiStorageWindow.GetVisibleTabBags()
+        return visible[0] if visible else None
     
     @staticmethod
     @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabSlotFrames")

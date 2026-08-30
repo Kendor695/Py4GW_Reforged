@@ -46,18 +46,31 @@ Docstring parsing rules
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import Generator, Iterable, Sequence
+from dataclasses import dataclass
+from typing import Any, Optional, cast
+
+import PySystem
+import PyInventory
+import PyGameThread
 from ...AgentArray import AgentArray
 from Py4GWCoreLib import AgentArray
 
 from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...GlobalCache.WhiteboardLocks import clear_loot_lock, post_loot_lock
+from ...Inventory import Inventory
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
-from ...UIManager import UIManager
+from ...UIManager import (
+    ExpertSalvageUnidentifiedWindow,
+    UIManager,
+)
 from ...enums import CONSUMABLE_MODELID_TO_EFFECT_NAME
-from ...enums_src.Item_enums import Bags
+from ...enums_src.Item_enums import Bags, Rarity, SalvageMode
+from ...Item import Bag, Item
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
+from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 from ...enums_src.Model_enums import ModelID
 from ...enums_src.UI_enums import ControlAction
 from ...py4gwcorelib_src.system_settings.loot_filters import LootFilters
@@ -67,12 +80,164 @@ from .player import BTPlayer
 from ...FrameTree import Frame, FrameId, FrameKeyError
 
 
+_SALVAGE_DEBUG = False
+
+
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
     ConsoleLog(source, message, message_type, log=log)
 
 
 def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
     ConsoleLog(source, message, message_type, log=True)
+
+
+def _salvage_trace(message: str) -> None:
+    """Emit salvage execution diagnostics through the visible console path."""
+    if not _SALVAGE_DEBUG:
+        return
+    _log("SalvageItem", message, log=True)
+
+
+def _invoke_salvage_binding(salvage_kit_id: int, item_id: int) -> None:
+    """Run the native binding from the game-thread callback."""
+    _salvage_trace(
+        "native salvage binding invoked item=%d kit=%d"
+        % (int(item_id), int(salvage_kit_id))
+    )
+    PyInventory.PyInventory().Salvage(int(salvage_kit_id), int(item_id))
+
+
+def enqueue_salvage_request(salvage_kit_id: int, item_id: int) -> bool:
+    """Schedule the native salvage start on the Guild Wars game thread."""
+    if int(salvage_kit_id) <= 0 or int(item_id) <= 0:
+        return False
+    try:
+        PyGameThread.enqueue(
+            lambda kit_id=int(salvage_kit_id), target_id=int(item_id): _invoke_salvage_binding(
+                kit_id, target_id
+            )
+        )
+        _salvage_trace(
+            "native salvage binding dispatched item=%d kit=%d"
+            % (int(item_id), int(salvage_kit_id))
+        )
+        return True
+    except Exception as exc:
+        _salvage_trace(
+            "native salvage binding dispatch failed item=%d kit=%d error=%r"
+            % (int(item_id), int(salvage_kit_id), exc)
+        )
+        return False
+
+
+@dataclass(frozen=True)
+class SalvageKitInfo:
+    """Read-only native capability facts for one usable salvage kit."""
+
+    item_id: int
+    model_id: int
+    uses: int
+    bag: Bags
+    slot: int
+    is_lesser: bool
+    is_expert: bool
+    is_perfect: bool
+
+
+@dataclass
+class _GeneratorState:
+    gen: Generator[None, None, None] | None = None
+
+
+def _salvage_bag(value: int) -> Bags | None:
+    try:
+        return Bags(int(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _salvage_entry_value(entry: object, name: str, fallback: int = 0) -> int:
+    try:
+        value = entry.get(name, fallback) if isinstance(entry, dict) else getattr(entry, name, fallback)
+        return int(value)
+    except (AttributeError, TypeError, ValueError):
+        return fallback
+
+
+def _salvage_usage_fact(item_id: int, name: str) -> bool:
+    try:
+        return bool(getattr(Item.Usage, name)(item_id))
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def scan_salvage_kits(bag_ids: Iterable[int]) -> list[SalvageKitInfo]:
+    """Read usable kits from the exact bag scope supplied by the caller."""
+    output: list[SalvageKitInfo] = []
+    seen: set[int] = set()
+    for raw_bag_id in bag_ids:
+        bag = _salvage_bag(int(raw_bag_id))
+        if bag is None:
+            continue
+        try:
+            bag_items = PyInventory.Bag(int(bag.value), bag.name).GetItems() or []
+        except Exception as exc:
+            _fail_log("SalvageItem", "Kit scan failed for bag=%s: %s" % (bag.name, exc), Console.MessageType.Error)
+            continue
+        for entry in bag_items:
+            item_id = _salvage_entry_value(entry, "item_id")
+            if item_id <= 0 or item_id in seen:
+                continue
+            seen.add(item_id)
+            try:
+                uses = int(Item.Usage.GetUses(item_id))
+                if uses <= 0 or not _salvage_usage_fact(item_id, "IsSalvageKit"):
+                    continue
+                kit = SalvageKitInfo(
+                    item_id=item_id,
+                    model_id=int(Item.GetModelID(item_id)),
+                    uses=uses,
+                    bag=bag,
+                    slot=_salvage_entry_value(entry, "slot", -1),
+                    is_lesser=_salvage_usage_fact(item_id, "IsLesserKit"),
+                    is_expert=_salvage_usage_fact(item_id, "IsExpertSalvageKit"),
+                    is_perfect=_salvage_usage_fact(item_id, "IsPerfectSalvageKit"),
+                )
+                if not (kit.is_lesser or kit.is_expert or kit.is_perfect):
+                    _salvage_trace(
+                        "Ignoring kit with no recognized native capability: "
+                        f"item={item_id} model={kit.model_id} bag={bag.name} slot={kit.slot}",
+                    )
+                    continue
+                output.append(kit)
+            except Exception as exc:
+                _fail_log("SalvageItem", "Kit inspection failed for item=%d: %s" % (item_id, exc), Console.MessageType.Error)
+    return output
+
+
+def select_salvage_kit(
+    mode: SalvageMode,
+    bag_ids: Iterable[int],
+    allow_expert_for_common_materials: bool = True,
+) -> SalvageKitInfo | None:
+    """Select the least-used compatible kit while preserving capability priority."""
+    kits = scan_salvage_kits(bag_ids)
+    if mode == SalvageMode.LesserCraftingMaterials:
+        preferred = [kit for kit in kits if kit.is_lesser]
+        if not preferred and allow_expert_for_common_materials:
+            preferred = [kit for kit in kits if kit.is_expert or kit.is_perfect]
+    elif mode in (
+        SalvageMode.RareCraftingMaterials,
+        SalvageMode.Prefix,
+        SalvageMode.Suffix,
+        SalvageMode.Inscription,
+    ):
+        preferred = [kit for kit in kits if kit.is_perfect]
+        if not preferred:
+            preferred = [kit for kit in kits if kit.is_expert]
+    else:
+        preferred = []
+    return min(preferred, key=lambda kit: (kit.uses, kit.item_id)) if preferred else None
 
 
 class BTItems:
@@ -1908,7 +2073,7 @@ class BTItems:
           Notes: Auto-collects on first tick from Backpack + Belt Pouch + Bag 1 + Bag 2. Defaults to White/Blue/Purple/Gold when rarities is omitted. per_item_delay_ms throttles the packet rate to avoid anti-abuse disconnects.
         """
         active_rarities = set(rarities if rarities is not None else ["Blue", "Purple", "Gold"])
-        state = {"gen": None}
+        state = _GeneratorState()
 
         def collect_unidentified_ids() -> list[int]:
             from ...Item import Item
@@ -1933,22 +2098,360 @@ class BTItems:
 
         def tick(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             from ..yield_src.items import Items as YieldItems
-            if state["gen"] is None:
+            if state.gen is None:
                 item_ids = collect_unidentified_ids()
                 if log:
                     _log("IdentifyInventoryItems", f"Auto-collected {len(item_ids)} unidentified items.", log=True)
                 if not item_ids:
                     return BehaviorTree.NodeState.SUCCESS
-                state["gen"] = YieldItems.IdentifyItemsAndVerify(item_ids, log=log, per_item_delay_ms=per_item_delay_ms)
+                state.gen = YieldItems.IdentifyItemsAndVerify(item_ids, log=log, per_item_delay_ms=per_item_delay_ms)
             try:
-                next(state["gen"])
+                next(state.gen)
                 return BehaviorTree.NodeState.RUNNING
             except StopIteration:
-                state["gen"] = None
+                state.gen = None
                 return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
             BehaviorTree.ActionNode(name="IdentifyInventoryItems", action_fn=tick, aftercast_ms=0)
+        )
+
+    class SavalvageProgress:
+        def __init__(self, item_id: int, salvage_started_at: float, initial_qty: int, salvage_amount: int):
+            self.item_id = item_id
+            self.salvage_started_at = salvage_started_at
+            self.initial_qty = initial_qty
+            self.desired_qty = initial_qty - salvage_amount
+            self.salvage_amount = salvage_amount
+            self.confirm_clicked_at = 0.0
+            self.salvaged_any = False
+
+    @staticmethod
+    def SalvageItem(
+        item_id: int,
+        salvage_mode: "SalvageMode | int" = 0,
+        salvage_amount: Optional[int] = None,
+        preferred_kit_id: Optional[int] = None,
+        allow_expert_for_common_materials: bool = False,
+        state_key: str = "_salvage_state",
+        timeout_ms_per_item: int = 1500,
+        aftercast_ms: int = 0,
+        debug_enabled: bool = False,
+    ):
+        """
+        Build an action node that salvages an item using the requested salvage mode and UI flow.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Salvage Item
+          Purpose: Drive the salvage window workflow for a target item until the requested salvage completes or fails.
+          UserDescription: Use this when you want a BT step that manages salvage UI and progress automatically for one item.
+          Notes: Stores runtime state in the blackboard, supports expert or lesser kits, and returns running while the salvage flow is in progress.
+        """
+        def _reset_state(node: BehaviorTree.Node):
+            node.blackboard.pop(state_key, None)
+
+        def _debug(message: str, msg_type: Any = PySystem.Console.MessageType.Info):
+            if not debug_enabled:
+                return
+            PySystem.Console.Log("BTNodes.Items.SalvageItem", message, msg_type)
+
+        def _resolve_preferred_kit(valid_model_ids: tuple[ModelID, ...]) -> int:
+            if preferred_kit_id is None or preferred_kit_id <= 0:
+                return 0
+
+            preferred = ItemSnapshot.from_item_id(preferred_kit_id)
+            if preferred is None or not preferred.is_valid or not preferred.is_salvage_kit or preferred.uses <= 0:
+                return 0
+
+            try:
+                preferred_model_id = ModelID(preferred.model_id)
+            except ValueError:
+                return 0
+
+            return preferred.id if preferred_model_id in valid_model_ids else 0
+
+        def _get_expert_salvage_kit() -> int:
+            preferred = _resolve_preferred_kit((ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit))
+            if preferred > 0:
+                return preferred
+
+            inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+            expert_kits = [
+                item
+                for bag in inventory_snapshot.values()
+                for item in bag.values()
+                if item is not None
+                and item.is_valid
+                and item.is_salvage_kit
+                and item.model_id in (ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit)
+            ]
+            if not expert_kits:
+                return 0
+            return min(expert_kits, key=lambda kit: kit.uses).id
+
+        def _get_lesser_salvage_kit() -> int:
+            preferred = _resolve_preferred_kit((ModelID.Salvage_Kit,))
+            if preferred > 0:
+                return preferred
+
+            inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+            lesser_kits = [
+                item
+                for bag in inventory_snapshot.values()
+                for item in bag.values()
+                if item is not None
+                and item.is_valid
+                and item.is_salvage_kit
+                and item.model_id == ModelID.Salvage_Kit
+            ]
+            if not lesser_kits:
+                return 0
+            return min(lesser_kits, key=lambda kit: kit.uses).id
+
+        def _get_upgrade_salvage_kit() -> int:
+            valid_model_ids = (
+                ModelID.Perfect_Salvage_Kit,
+                ModelID.Expert_Salvage_Kit,
+                ModelID.Superior_Salvage_Kit,
+            )
+            preferred = _resolve_preferred_kit(valid_model_ids)
+            if preferred > 0:
+                return preferred
+
+            inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+            upgrade_kits = [
+                item
+                for bag in inventory_snapshot.values()
+                for item in bag.values()
+                if item is not None
+                and item.is_valid
+                and item.is_salvage_kit
+                and item.model_id in valid_model_ids
+            ]
+            if not upgrade_kits:
+                return 0
+            return min(upgrade_kits, key=lambda kit: kit.uses).id
+
+        def _is_mod_salvaged(item: ItemSnapshot, mode: SalvageMode) -> bool:
+            match mode:
+                case SalvageMode.Prefix:
+                    return item.prefix is None
+                case SalvageMode.Suffix:
+                    return item.suffix is None
+                case SalvageMode.Inscription:
+                    return item.inscription is None
+            return False
+
+        def _salvage(node: BehaviorTree.Node):
+            if item_id is None or item_id <= 0:
+                _debug(f"Invalid item_id={item_id}.")
+                return BehaviorTree.NodeState.FAILURE
+
+            try:
+                mode = SalvageMode(int(salvage_mode))
+            except Exception:
+                mode = SalvageMode.NONE
+
+            if mode == SalvageMode.NONE:
+                _debug(f"Invalid salvage mode for item_id={item_id}: raw={salvage_mode!r}.")
+                return BehaviorTree.NodeState.FAILURE
+
+            state = node.blackboard.get(state_key)
+            state = cast(BTItems.SavalvageProgress, state) if state else None
+            item = ItemSnapshot.from_item_id(item_id)
+
+            if state and item_id != state.item_id:
+                _debug(f"State item mismatch: requested={item_id}, state_item={state.item_id}.")
+                return BehaviorTree.NodeState.SUCCESS
+            if item is None:
+                _debug(f"Item {item_id} no longer exists.")
+                return BehaviorTree.NodeState.SUCCESS
+            if not item.is_valid:
+                _debug(f"Item {item_id} is not valid.")
+                return BehaviorTree.NodeState.SUCCESS
+            if not item.is_salvageable:
+                _debug(f"Item {item.id} is no longer salvageable.")
+                return BehaviorTree.NodeState.SUCCESS
+            if not item.is_inventory_item:
+                _debug(f"Item {item.id} is no longer in inventory.")
+                return BehaviorTree.NodeState.SUCCESS
+            if _is_mod_salvaged(item, mode):
+                _debug(f"Requested salvage mode {mode.name} already resolved for item {item.id}.")
+                return BehaviorTree.NodeState.SUCCESS
+
+            if state is None:
+                state = BTItems.SavalvageProgress(
+                    item_id=item.id,
+                    salvage_started_at=0.0,
+                    initial_qty=item.quantity,
+                    salvage_amount=min(item.quantity, salvage_amount if salvage_amount else item.quantity),
+                )
+                node.blackboard[state_key] = state
+                _debug(
+                    f"Initialized salvage state for item={item.id} mode={mode.name} "
+                    f"qty={item.quantity} desired_qty={state.desired_qty} timeout_ms={timeout_ms_per_item}."
+                )
+
+            now = time.monotonic()
+            if Inventory.GetFreeSlotCount() <= 0:
+                _debug(f"Cannot salvage item {item.id}: no free inventory slots.", PySystem.Console.MessageType.Warning)
+                return BehaviorTree.NodeState.FAILURE
+
+            if not state.salvage_started_at:
+                if mode == SalvageMode.LesserCraftingMaterials:
+                    kit_id = _get_lesser_salvage_kit()
+                    if allow_expert_for_common_materials and kit_id == 0:
+                        kit_id = _get_expert_salvage_kit()
+                elif mode == SalvageMode.RareCraftingMaterials:
+                    kit_id = _get_expert_salvage_kit()
+                else:
+                    kit_id = _get_upgrade_salvage_kit()
+
+                kit = ItemSnapshot.from_item_id(kit_id)
+                if kit_id <= 0 or (
+                    kit is None
+                    or kit.model_id == ModelID.Salvage_Kit
+                    and (item.rarity > Rarity.White and not item.is_identified)
+                ):
+                    _debug(
+                        f"Failed to resolve valid salvage kit for item={item.id} mode={mode.name}. "
+                        f"kit_id={kit_id} kit_model={(kit.model_id if kit else 'None')} "
+                        f"item_rarity={item.rarity.name} item_identified={item.is_identified}.",
+                        PySystem.Console.MessageType.Warning,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+
+                _debug(
+                    f"Starting salvage item={item.id} mode={mode.name} kit_id={kit_id} "
+                    f"kit_model={kit.model_id if kit else 'None'} item_qty={item.quantity} "
+                    f"preferred_kit_id={preferred_kit_id or 0}."
+                )
+                if not enqueue_salvage_request(kit_id, item_id):
+                    _debug(
+                        f"Failed to dispatch native salvage binding for item={item.id} kit={kit_id}.",
+                        PySystem.Console.MessageType.Warning,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+                state.salvage_started_at = now
+                return BehaviorTree.NodeState.RUNNING
+
+            if UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen():
+                _debug(f"Confirm lesser materials window open for item={item.id}.")
+                if UIManagerExtensions.ConfirmLesserSalvage():
+                    state.confirm_clicked_at = now
+                    _debug(f"Confirmed lesser materials salvage for item={item.id}.")
+                    return BehaviorTree.NodeState.RUNNING
+
+            if UIManagerExtensions.ConfirmModMaterialSalvageVisible():
+                _debug(f"Confirm mod/material warning visible for item={item.id}.")
+                if UIManagerExtensions.ConfirmModMaterialSalvage():
+                    state.confirm_clicked_at = now
+                    _debug(f"Confirmed mod/material warning for item={item.id}.")
+                    return BehaviorTree.NodeState.RUNNING
+
+            if UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen():
+                _debug(f"Unidentified salvage warning open for item={item.id}.")
+                if UIManagerExtensions.ConfirmSalvageWindowNoIdentified():
+                    state.confirm_clicked_at = now
+                    _debug(f"Confirmed unidentified salvage warning for item={item.id}.")
+                    return BehaviorTree.NodeState.RUNNING
+
+            if UIManagerExtensions.IsSalvageWindowOpen():
+                _debug(f"Salvage choice window open for item={item.id}, selecting mode={mode.name}.")
+                if UIManagerExtensions.SelectSalvageOptionAndSalvage(cast(Any, mode)):
+                    state.confirm_clicked_at = now
+                    _debug(f"Selected salvage option {mode.name} for item={item.id}.")
+                    return BehaviorTree.NodeState.RUNNING
+                _debug(
+                    f"Failed to select salvage option {mode.name} for item={item.id}; cancelling.",
+                    PySystem.Console.MessageType.Warning,
+                )
+                UIManagerExtensions.CancelSalvageOption()
+                return BehaviorTree.NodeState.FAILURE
+
+            inventory_instance: Any = Inventory.inventory_instance()
+            try:
+                is_salvaging = bool(inventory_instance.IsSalvaging())
+            except Exception:
+                is_salvaging = False
+            try:
+                transaction_done = bool(inventory_instance.IsSalvageTransactionDone())
+            except Exception:
+                transaction_done = False
+
+            if transaction_done:
+                _debug(f"Salvage transaction done for item={item.id}; calling FinishSalvage().")
+                try:
+                    inventory_instance.FinishSalvage()
+                except Exception as exc:
+                    _debug(f"FinishSalvage failed for item={item.id}: {exc!r}.", PySystem.Console.MessageType.Warning)
+                    return BehaviorTree.NodeState.FAILURE
+                state.confirm_clicked_at = now
+                return BehaviorTree.NodeState.RUNNING
+
+            current_qty = item.quantity
+            initial_qty = state.initial_qty
+            desired_qty = state.desired_qty
+            confirm_clicked_at = state.confirm_clicked_at
+            qty_changed = current_qty < initial_qty
+            item_gone = not item.is_inventory_item
+            mod_salvaged = _is_mod_salvaged(item, mode)
+            windows_closed_after_confirm = (
+                confirm_clicked_at > 0.0
+                and not UIManagerExtensions.AnySalvageRelatedWindowOpen()
+                and not is_salvaging
+                and (now - confirm_clicked_at) >= 0.20
+            )
+
+            if not item_gone and item.is_stackable and qty_changed and current_qty > desired_qty:
+                _debug(
+                    f"Partial salvage item={item.id}: initial_qty={initial_qty}, current_qty={current_qty}, "
+                    f"desired_qty={desired_qty}. Restarting for remaining quantity."
+                )
+                state.salvage_started_at = 0.0
+                state.initial_qty = item.quantity
+                return BehaviorTree.NodeState.RUNNING
+
+            if qty_changed or item_gone or windows_closed_after_confirm or mod_salvaged:
+                _debug(
+                    f"Salvage complete item={item.id} mode={mode.name} "
+                    f"qty_changed={qty_changed} item_gone={item_gone} "
+                    f"windows_closed_after_confirm={windows_closed_after_confirm} mod_salvaged={mod_salvaged} "
+                    f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty}."
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            if (now - float(state.salvage_started_at)) * 1000 >= timeout_ms_per_item:
+                _debug(
+                    f"Timeout item={item.id} mode={mode.name} after {timeout_ms_per_item} ms. "
+                    f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
+                    f"confirm_clicked_at={confirm_clicked_at:.3f} "
+                    f"inventory_state={{is_salvaging:{is_salvaging}, transaction_done:{transaction_done}}} "
+                    f"windows={{salvage:{UIManagerExtensions.IsSalvageWindowOpen()}, "
+                    f"lesser_confirm:{UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen()}, "
+                    f"mod_confirm:{UIManagerExtensions.ConfirmModMaterialSalvageVisible()}, "
+                    f"unidentified:{UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen()}}} "
+                    f"free_slots={Inventory.GetFreeSlotCount()}.",
+                    PySystem.Console.MessageType.Warning,
+                )
+                node.blackboard.pop(state_key, None)
+                return BehaviorTree.NodeState.FAILURE
+
+            _debug(
+                f"Waiting item={item.id} mode={mode.name} "
+                f"elapsed_ms={int((now - float(state.salvage_started_at)) * 1000)} "
+                f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
+                f"confirm_clicked_at={confirm_clicked_at:.3f} "
+                f"is_salvaging={is_salvaging} transaction_done={transaction_done}."
+            )
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree.ActionNode(
+            name="Items.SalvageItems",
+            action_fn=_salvage,
+            aftercast_ms=aftercast_ms,
         )
 
     @staticmethod
@@ -1970,7 +2473,7 @@ class BTItems:
           Notes: Auto-collects on first tick and skips items that are not identified (except whites). Handles the Purple/Gold materials confirmation dialog automatically. per_item_delay_ms throttles the packet rate to avoid anti-abuse disconnects.
         """
         active_rarities = set(rarities if rarities is not None else ["White", "Blue", "Purple", "Gold"])
-        state = {"gen": None}
+        state = _GeneratorState()
 
         def collect_salvageable_ids() -> list[int]:
             from ...Item import Item
@@ -2000,18 +2503,18 @@ class BTItems:
 
         def tick(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             from ..yield_src.items import Items as YieldItems
-            if state["gen"] is None:
+            if state.gen is None:
                 item_ids = collect_salvageable_ids()
                 if log:
                     _log("SalvageInventoryItems", f"Auto-collected {len(item_ids)} salvageable items.", log=True)
                 if not item_ids:
                     return BehaviorTree.NodeState.SUCCESS
-                state["gen"] = YieldItems.SalvageItemsAndVerify(item_ids, log=log, per_item_delay_ms=per_item_delay_ms)
+                state.gen = YieldItems.SalvageItemsAndVerify(item_ids, log=log, per_item_delay_ms=per_item_delay_ms)
             try:
-                next(state["gen"])
+                next(state.gen)
                 return BehaviorTree.NodeState.RUNNING
             except StopIteration:
-                state["gen"] = None
+                state.gen = None
                 return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(

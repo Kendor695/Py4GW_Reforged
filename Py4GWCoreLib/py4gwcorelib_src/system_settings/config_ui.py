@@ -253,6 +253,8 @@ def build_window(controller) -> "ImGui.SidebarWindow":
 
             for label, module_path in (
                 ("Inventory Features", "Py4GWCoreLib.py4gwcorelib_src.system_settings.inventory.config_ui"),
+                ("Identification", "Py4GWCoreLib.py4gwcorelib_src.system_settings.identification.config_ui"),
+                ("Salvage", "Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage.config_ui"),
             ):
                 try:
                     import importlib

@@ -1,10 +1,11 @@
-"""Global persistence for the remaining independent item-feature settings."""
+"""Persistence for inventory presentation and account-owned bag settings."""
 
 import ast
 
-from .model import ColorizeSettings, InventoryFeatureSettings, RARITIES
+from .model import BagSettings, ColorizeSettings, InventoryFeatureSettings, RARITIES
 
 _DOC = "Widgets/System/InventoryFeatures.json"
+_BAGS_DOC = "Widgets/System/Bags.json"
 _LEGACY_INI = "Inventory/InventoryPlus/InventoryPlus.ini"
 
 
@@ -79,5 +80,26 @@ def load() -> InventoryFeatureSettings:
 
 def save(settings: InventoryFeatureSettings) -> None:
     document = _json()
+    if document is not None:
+        document.set_json("settings", settings.to_dict())
+
+
+def _bags_json():
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.JsonFactory import JsonFactory
+
+        return JsonFactory(_BAGS_DOC, "account")
+    except Exception:
+        return None
+
+
+def load_bags() -> BagSettings:
+    document = _bags_json()
+    raw = document.get_json("settings", {}) if document is not None else {}
+    return BagSettings.from_dict(raw)
+
+
+def save_bags(settings: BagSettings) -> None:
+    document = _bags_json()
     if document is not None:
         document.set_json("settings", settings.to_dict())

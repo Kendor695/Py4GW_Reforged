@@ -79,6 +79,11 @@ class FrameCache:
                 part if _is_hashable(part) else FrameCache._normalize_key(part)
                 for part in key
             )
+        if isinstance(key, tuple):
+            return tuple(
+                part if _is_hashable(part) else FrameCache._normalize_key(part)
+                for part in key
+            )
         if isinstance(key, set):
             return frozenset(
                 part if _is_hashable(part) else FrameCache._normalize_key(part)
