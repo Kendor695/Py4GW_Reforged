@@ -17,6 +17,7 @@ from Py4GWCoreLib import (
     ConsoleLog,
     GLOBAL_CACHE,
     Inventory,
+    Item,
     Map,
     Player,
     Range,
@@ -97,6 +98,14 @@ CURSED_LANDS = 56
 THE_BLACK_CURTAIN = 18
 TEMPLE_OF_THE_AGES = 138
 
+# ---------------------------------------------------------------------------
+# NPC encoded name strings (unchanging identifiers for NPCs)
+# ---------------------------------------------------------------------------
+GWEN_ENC_STRING = "\\x8102\\x11AF"
+SCRYING_POOL_ENC_STRING = "\\x8102\\x229B\\xEC49\\xC39A\\x7C4C"
+OGDEN_ENC_STRING = "\\x8102\\x0656"
+VEKK_ENC_STRING = "\\x8102\\x064F"
+
 # HeroID.MOX — M.O.X., the Dervish golem hero (EotN), Hero_enums.py
 MOX_HERO_ID = 16
 # Player-level Dervish hero skillbar template for M.O.X.
@@ -119,24 +128,73 @@ def ensure_botting_tree() -> BottingTree:
             repeat=False,
             multi_account=False,
             isolation_enabled=True,
-            configure_fn=lambda tree: tree.Config.ConfigureUpkeep(
-                looting_enabled=True,
-                resurrection_scroll=True,
-                auto_inventory_handler_enabled=True,
-                consumable_upkeeps=tuple(
-                    int(model_id)
-                    for model_id in CONSUMABLE_UPKEEPS
-                ),
-                # Igneous Summoning Stone (Fire Imp, model 30847) upkeep:
-                # prepared once per outpost, auto-summoned in explorables.
-                enable_outpost_imp_service=True,
-                enable_explorable_imp_service=True,
-                heroai_state_logging=False,
-                enable_party_wipe_recovery=True,
-            ),
+            configure_fn=_configure_upkeep,
         )
 
     return botting_tree
+
+
+# The Imp summoning stone services are gated by this flag instead of being
+# added/removed at runtime: rebuilding the service list mid-run tears down the
+# root tree (planner included), which aborts the currently running mission
+# step. Toggling the flag takes effect on the next service tick with no rebuild.
+_imp_services_enabled: bool = True
+
+
+def _gated_imp_service(name: str, subtree_factory: Callable[[], BehaviorTree]) -> BehaviorTree:
+    """Build an imp service node that only runs while _imp_services_enabled."""
+    def _tick(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        if not _imp_services_enabled:
+            state = node.blackboard.get(f"{name}_gate_state")
+            if state is not None and state.get("subtree") is not None:
+                state["subtree"].reset()
+                state["subtree"] = None
+            return BehaviorTree.NodeState.RUNNING
+        return RoutinesBT.Upkeepers._tick_service_subtree(
+            node,
+            state_key=f"{name}_gate_state",
+            subtree_factory=subtree_factory,
+        )
+
+    return BehaviorTree(
+        BehaviorTree.ConditionNode(
+            name=name,
+            condition_fn=_tick,
+        )
+    )
+
+
+def _configure_upkeep(tree: BottingTree) -> None:
+    tree.Config.ConfigureUpkeep(
+        looting_enabled=True,
+        resurrection_scroll=True,
+        auto_inventory_handler_enabled=True,
+        consumable_upkeeps=tuple(
+            int(model_id)
+            for model_id in CONSUMABLE_UPKEEPS
+        ),
+        # Igneous Summoning Stone (Fire Imp, model 30847) upkeep is registered
+        # below as flag-gated services; UnlockKilroyStonekin flips the gate
+        # off for the mission and back on afterwards.
+        enable_outpost_imp_service=False,
+        enable_explorable_imp_service=False,
+        heroai_state_logging=False,
+        enable_party_wipe_recovery=True,
+    )
+    tree.AddServiceTree(
+        "OutpostImpService",
+        lambda: _gated_imp_service(
+            "OutpostImpService",
+            lambda: RoutinesBT.Upkeepers.OutpostImpService(),
+        ),
+    )
+    tree.AddServiceTree(
+        "ExplorableImpService",
+        lambda: _gated_imp_service(
+            "ExplorableImpService",
+            lambda: RoutinesBT.Upkeepers.ExplorableImpService(),
+        ),
+    )
 
 
 # ============================================================================
@@ -1753,18 +1811,18 @@ def UnlockEyeOfTheNorthPool() -> BehaviorTree:
             BT.Move((-5198.00, 5595.00)),
             BT.WaitForMapLoad(map_id=646, timeout_ms=30000),
             BT.Move(pos=(-6572.70, 6588.83)),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x800001),
+            BT.MoveAndDialogByModelID(modelID_or_encStr=GWEN_ENC_STRING, dialog_id=0x800001),  # Gwen
             BT.Wait(duration_ms=1000),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x63D),
+            BT.MoveAndDialogByModelID(modelID_or_encStr=SCRYING_POOL_ENC_STRING, dialog_id=0x63D),  # Scrying Pool
             BT.Wait(duration_ms=1000),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x63F),
+            BT.MoveAndDialogByModelID(modelID_or_encStr=SCRYING_POOL_ENC_STRING, dialog_id=0x63F),  # Scrying Pool
             BT.Wait(duration_ms=1000),
             BT.WaitForMapLoad(map_id=646, timeout_ms=30000),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x89),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x831904),
-            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x8A),
-            BT.MoveAndDialog(pos=(-6133.41, 5717.30), dialog_id=0x838904),
-            BT.MoveAndDialog(pos=(-5626.80, 6259.57), dialog_id=0x839304),
+            BT.MoveAndDialogByModelID(modelID_or_encStr=GWEN_ENC_STRING, dialog_id=0x89),  # Gwen
+            BT.MoveAndDialogByModelID(modelID_or_encStr=GWEN_ENC_STRING, dialog_id=0x831904),  # Gwen
+            BT.DialogAtXY(pos=(-6572.70, 6588.83), dialog_id=0x8A), #for the Keiran Bow
+            BT.MoveAndDialogByModelID(modelID_or_encStr=OGDEN_ENC_STRING, dialog_id=0x838904),  # Ogden
+            BT.MoveAndDialogByModelID(modelID_or_encStr=VEKK_ENC_STRING, dialog_id=0x839304),  # Vekk
         ],
     )
 
@@ -1793,68 +1851,125 @@ def ToGunnarsHold() -> BehaviorTree:
     )
 
 
+def _set_imp_services(enabled: bool) -> BehaviorTree:
+    """Toggle the Igneous Summoning Stone upkeep services for the current run.
+
+    Only flips the module-level gate flag; the services were registered once
+    at tree creation. No tree rebuild happens here, so this is safe to call
+    mid-mission (a ConfigureUpkeep re-call would reset the root tree and
+    abort the running step).
+    """
+    def _apply(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        global _imp_services_enabled
+        _imp_services_enabled = enabled
+        ConsoleLog(
+            "UnlockKilroyStonekin",
+            f"Imp summoning stone services {'enabled' if enabled else 'disabled'}.",
+        )
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="Enable Imp Stone" if enabled else "Disable Imp Stone",
+            action_fn=_apply,
+            aftercast_ms=0,
+        )
+    )
+
+
+# Weapon/offhand model IDs captured before the Kilroy brass knuckles are
+# equipped, so the character can return to whatever they had before.
+_stored_kilroy_weapons: dict[str, int] = {"weapon": 0, "offhand": 0}
+
+
+def _remember_equipped_weapons() -> BehaviorTree:
+    """Record the player's currently equipped weapon and offhand model IDs."""
+    def _apply(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        agent_id = Player.GetAgentID()
+        weapon_item_id, _weapon_type, offhand_item_id, _offhand_type = (
+            Agent.GetWeaponExtraData(agent_id)
+        )
+        _stored_kilroy_weapons["weapon"] = (
+            Item.GetModelID(weapon_item_id) if weapon_item_id else 0
+        )
+        _stored_kilroy_weapons["offhand"] = (
+            Item.GetModelID(offhand_item_id) if offhand_item_id else 0
+        )
+        ConsoleLog(
+            "UnlockKilroyStonekin",
+            f"Remembered equipped weapons: weapon={_stored_kilroy_weapons['weapon']}, "
+            f"offhand={_stored_kilroy_weapons['offhand']}.",
+        )
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="Remember Equipped Weapons",
+            action_fn=_apply,
+            aftercast_ms=0,
+        )
+    )
+
+
+def _restore_equipped_weapons() -> BehaviorTree:
+    """Re-equip the weapon/offhand remembered by _remember_equipped_weapons."""
+    def _apply(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        agent_id = Player.GetAgentID()
+        for key in ("weapon", "offhand"):
+            model_id = _stored_kilroy_weapons.get(key, 0)
+            if not model_id:
+                continue
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id == 0:
+                ConsoleLog(
+                    "UnlockKilroyStonekin",
+                    f"Stored {key} model {model_id} not found in inventory; skipping.",
+                )
+                continue
+            GLOBAL_CACHE.Inventory.EquipItem(item_id, agent_id)
+            ConsoleLog(
+                "UnlockKilroyStonekin",
+                f"Re-equipped stored {key} (model {model_id}, item {item_id}).",
+            )
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="Restore Equipped Weapons",
+            action_fn=_apply,
+            aftercast_ms=1500,
+        )
+    )
+
+
 def UnlockKilroyStonekin() -> BehaviorTree:
     """Mirrors the classic Unlock_Kilroy_Stonekin()."""
     return BT.Sequence(
         name="Unlock Kilroy Stonekin",
         children=[
+            # The Imp summoning stone is not allowed in this mission.
+            _set_imp_services(enabled=False),
             BT.Travel(target_map_id=644),
             BT.MoveAndDialog(pos=(17341.00, -4796.00), dialog_id=0x835A01),
             BT.DialogAtXY(pos=(17341.00, -4796.00), dialog_id=0x84),
             BT.WaitForMapLoad(map_id=703, timeout_ms=30000),
             BT.Sequence(name="Killroy Combat Template", children=[
                 ConfigureAggressiveEnv(),
+                # Snapshot what we're wearing so we can swap back after.
+                _remember_equipped_weapons(),
                 BT.EquipItemByModelID(24897),
             ]),
+            # Walk into the arena (mirrors legacy Move.XY(19290.50, -11552.23));
+            # without this the bot never engages and the mission never ends.
+            BT.Move(pos=(19290.50, -11552.23)),
+            BT.WaitUntilOnOutpost(timeout_ms=180000),
             BT.WaitForMapLoad(map_id=644, timeout_ms=30000),
+            # Back in Gunnar's Hold: restore the imp stone services and the
+            # weapons worn before the brass knuckles went on.
+            _set_imp_services(enabled=True),
+            _restore_equipped_weapons(),
             BT.MoveAndDialog(pos=(17341.00, -4796.00), dialog_id=0x835A07),
-            BT.ExecuteIfProfession(
-                "Dervish",
-                BT.Sequence(name="Equip Dervish Weapon", children=[
-                    BT.EquipItemByModelID(18910),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Paragon",
-                BT.Sequence(name="Equip Paragon Weapon", children=[
-                    BT.EquipItemByModelID(18913),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Elementalist",
-                BT.Sequence(name="Equip Elementalist Weapons", children=[
-                    BT.EquipItemByModelID(6508),
-                    BT.Wait(duration_ms=1000),
-                    BT.EquipItemByModelID(6514),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Mesmer",
-                BT.Sequence(name="Equip Mesmer Weapons", children=[
-                    BT.EquipItemByModelID(6508),
-                    BT.Wait(duration_ms=1000),
-                    BT.EquipItemByModelID(6514),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Monk",
-                BT.Sequence(name="Equip Monk Weapon", children=[
-                    BT.EquipItemByModelID(18926),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Necromancer",
-                BT.Sequence(name="Equip Necromancer Weapon", children=[
-                    BT.EquipItemByModelID(18914),
-                ]),
-            ),
-            BT.ExecuteIfProfession(
-                "Ranger",
-                BT.Sequence(name="Equip Ranger Weapon", children=[
-                    BT.EquipItemByModelID(35829),
-                ]),
-            ),
-            BT.Succeeder(name="Warrior needs no weapon equip"),
+            BT.Succeeder(name="Profession weapons restored from snapshot"),
         ],
     )
 
