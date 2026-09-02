@@ -1643,9 +1643,7 @@ def ToLionsArch() -> BehaviorTree:
             BT.WaitForMapLoad(map_name="Lion's Gate", timeout_ms=30000),
             BT.VanquishNode(steps=[(-1181, 1038)]),
             BT.DialogAtXY(pos=(-1181, 1038), dialog_id=0x85),
-            BT.VanquishNode(steps=[(-1856.86, 1434.14)]),
-            BT.Move((-2144, 1450)),
-            BT.WaitForMapLoad(map_id=55, timeout_ms=30000),
+            BT.Travel(target_map_id=55),
         ],
     )
 
@@ -1661,6 +1659,8 @@ def UnlockOlias() -> BehaviorTree:
             BT.Travel(target_map_id=55),
             BT.LeaveParty(),
             StandardHeroTeam(henchman_ids=[1, 3]),
+            # Add henchmen 1 and 3 separately since StandardHeroTeam didn't add them
+            RoutinesBT.Party.LoadParty(hero_ids=[], henchman_ids=[1, 3], clear_existing=False),
             BT.VanquishNode(steps=[(1413.11, 9255.51), (242.96, 6130.82)]),
             BT.MoveAndDialog(pos=(-1137.00, 2501.00), dialog_id=0x84),
             BT.WaitForMapLoad(map_id=471, timeout_ms=30000),
