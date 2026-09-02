@@ -79,10 +79,33 @@ class SalvageController:
 
     def save_settings(self) -> None:
         store.save(self._settings)
+        if not self._settings.enabled:
+            self._stop_automatic_work()
 
     def reload_account_settings(self) -> bool:
         self._settings = store.load()
+        if not self._settings.enabled:
+            self._stop_automatic_work()
         return True
+
+    def _automatic_enabled(self) -> bool:
+        """Read the persisted master switch as the final authority for automatic work.
+
+        System Settings is reloadable while its named callback can outlive a
+        previous controller object.  Reading the account setting here makes a
+        disabled checkbox fail closed even for such a stale callback instance.
+        Explicit context-menu salvage deliberately does not use this gate.
+        """
+        try:
+            return bool(store.load().enabled)
+        except Exception:
+            return False
+
+    def _stop_automatic_work(self) -> None:
+        """Prevent any further automatic dispatch after its master switch is disabled."""
+        self._timer.Stop()
+        self._pending_candidates.clear()
+        self._clear_active()
 
     def boot(self) -> None:
         if self._registered:
@@ -714,16 +737,16 @@ class SalvageController:
             self._diagnostic_targets.clear()
             self._timer.Reset()
             self._clear_active()
+        if not self._automatic_enabled():
+            self._stop_automatic_work()
+            self._trace_execution("disabled", "enabled=False")
+            return
         if self._active_item_id > 0:
             if not get_item_operation_lease().acquire(_OPERATION_OWNER):
                 self._status = "Salvage is paused while another item operation owns the pipeline."
                 return
             self._trace_execution("active", "item=%d" % self._active_item_id)
             self._process_active()
-            return
-        if not self._settings.enabled:
-            self._pending_candidates.clear()
-            self._trace_execution("disabled", "enabled=False")
             return
         if not is_explorable and not is_outpost:
             self._pending_candidates.clear()
@@ -777,7 +800,7 @@ class SalvageController:
         return float(inventory_store.load_bags().arrival_delay_seconds(map_context[2]))
 
     def _run_cycle(self) -> None:
-        if self._map_context() is None:
+        if self._map_context() is None or not self._automatic_enabled():
             return
         self._trace_execution("candidate_scan", "cycle_started=True")
         self._timer.Reset()
@@ -855,6 +878,9 @@ class SalvageController:
         try:
             if self._map_context() is None:
                 self._status = "Salvage is unavailable until the map is fully ready."
+                return False
+            if require_automatic_candidate and not self._automatic_enabled():
+                self._status = "Automatic Salvage is disabled. No salvage action was issued."
                 return False
             if not lease.acquire(_OPERATION_OWNER):
                 self._status = "Salvage is waiting for Identification or another item operation to finish."

@@ -417,11 +417,10 @@ def _draw_curated(controller: SalvageController) -> None:
     PyImGui.text("Keep List (%d active checkbox rule(s))" % len(active_rules))
     if active_rules:
         PyImGui.text_colored(
-            "Each checked entry is saved immediately and protects matching items immediately.",
+            "Each checked entry is saved immediately and protects matching items immediately. "
+            "Use Diagnostics to review the complete resolved rule list.",
             GOOD,
         )
-        for filter_definition in active_rules:
-            PyImGui.text("- %s" % filter_definition.name)
     else:
         PyImGui.text_colored(
             "No active Keep List rules. Automatic material salvage has nothing to exclude.",

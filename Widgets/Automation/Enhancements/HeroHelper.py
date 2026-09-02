@@ -810,6 +810,19 @@ class Helper:
         return item_type in {2, 15, 27, 32, 35, 36}  # axe, hammer, sword, daggers, scythe, spear
 
     @staticmethod
+    def holds_physical_weapon():
+        player_id = Player.GetAgentID()
+        if not player_id:
+            return False
+
+        # Query the active main-hand item directly.  The equipped-items bag is
+        # not ordered by weapon slot, and the higher-level weapon-name mapping
+        # can lag newly exposed weapon variants.
+        weapon_item_type = Agent.GetWeaponItemType(player_id)
+        physical_item_types = {2, 5, 15, 27, 32, 35, 36}
+        return weapon_item_type in physical_item_types or Agent.IsMartial(player_id)
+
+    @staticmethod
     def format_spell_title_case(spell_name):
         skip = {"of"}
         words = spell_name.split()
@@ -1071,7 +1084,7 @@ def smart_honor():
     player_id = Player.GetAgentID()
     if not Helper.is_agent_alive(player_id):
         return
-    if not Helper.is_melee_class() or not Helper.holds_melee_weapon():
+    if not Helper.holds_physical_weapon():
         return
 
     result = Helper.smartcast_hero_skill(
@@ -1447,7 +1460,7 @@ def draw_tab_smart_skills(config):
             ("Panic", "smart_panic_enabled", "Casts Panic on clustered enemy groups, preferring caster clumps.", "Panic"),
         ]),
         ("Monk", [
-            ("Strength of Honor", "smart_honor_enabled", "[DISABLE HERO CASTING] Maintains Honor on melee player.", "Strength_of_Honor"),
+            ("Strength of Honor", "smart_honor_enabled", "[DISABLE HERO CASTING] Maintains Honor on physical weapon user.", "Strength_of_Honor"),
             ("Life Bond", "smart_life_bond_enabled", "[DISABLE HERO CASTING] Maintains Life Bond on melee player.", "Life_Bond"),
             ("Vigorous Spirit", "smart_vigorous_enabled", "Casts Vigorous Spirit on melee player in combat.", "Vigorous_Spirit"),
         ]),
@@ -1487,6 +1500,7 @@ def draw_tab_smart_skills(config):
                 setattr(config, attr, current)
                 if current != previous:
                     Helper.log_event(message=f"{label} {'Enabled' if current else 'Disabled'}")
+                    config.save()
                 if tooltip and PyImGui.is_item_hovered():
                     PyImGui.set_tooltip(tooltip)
 

@@ -334,6 +334,8 @@ class AutoInventoryHandler():
         return bool(item and item.is_valid and item.is_inventory_item and (not rarity_filter or item.rarity in rarity_filter))
 
     def IdentifyItems(self, progress_callback: Optional[Callable[[float], None]] = None, log: bool = False, item_ids=None, rarities=None):
+        return
+
         from .BehaviorTree import BehaviorTree
         from Sources.frenkeyLib.ItemHandling.BTNodes import BTNodes
 
@@ -357,6 +359,8 @@ class AutoInventoryHandler():
             ConsoleLog(self.module_name, f"Identified {identified_items} items", Console.MessageType.Success)
 
     def SalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None, log: bool = False, item_ids=None, rarities=None, preferred_kit_id: Optional[int] = None, allow_unidentified_nonwhite: bool = False, respect_settings: bool = True, timeout_ms_per_item: int = 5000):
+        return
+
         from .BehaviorTree import BehaviorTree
         from Sources.frenkeyLib.ItemHandling.BTNodes import BTNodes
 
@@ -440,6 +444,8 @@ class AutoInventoryHandler():
              
              
     def DepositItemsAuto(self):
+        return
+
         from ..enums import Bags, ModelID
         from ..GlobalCache import GLOBAL_CACHE
         from ..Routines import Routines
@@ -585,6 +591,8 @@ class AutoInventoryHandler():
             
             
     def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
+        return
+
         self.status = "Identifying"
         yield from self.IdentifyItems()
         if progress_callback:
@@ -595,6 +603,8 @@ class AutoInventoryHandler():
         yield
         
     def IDSalvageDepositItems(self):
+        return
+
         from ..Routines import Routines
 
         #ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Console.MessageType.Info)

@@ -33,11 +33,11 @@ class Ray_of_Judgment(BuildMgr):
             template_code="OwAS4YIT+MuEWfAAAAAAAAwl",
             required_skills=[
                 Ray_of_Judgment_ID,
+            ],
+            optional_skills=[
                 Smite_Hex_ID,
                 Air_of_Superiority_ID,
                 Castigation_Signet_ID,
-            ],
-            optional_skills=[
                 Arcane_Echo_ID,
                 You_Move_Like_a_Dwarf_ID,
                 Smite_Condition_ID,

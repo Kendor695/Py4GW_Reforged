@@ -127,7 +127,8 @@ factory_model = load(
     "Py4GWCoreLib.py4gwcorelib_src.system_settings.loot_filter_factory.model",
     FACTORY_DIR / "model.py",
 )
-module("Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage.store", load=lambda: None)
+automatic_salvage_state = types.SimpleNamespace(enabled=True)
+module("Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage.store", load=lambda: automatic_salvage_state)
 module("Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage.model", SalvageSettings=object)
 controller = load(
     "Py4GWCoreLib.py4gwcorelib_src.system_settings.salvage.controller",
@@ -182,11 +183,17 @@ check("candidate preserves the exact matched slot", SalvageMode.Suffix, Controll
 
 
 class FakeTimer:
+    def __init__(self) -> None:
+        self.stopped = False
+
     def IsStopped(self) -> bool:
-        return False
+        return self.stopped
 
     def Start(self) -> None:
-        return None
+        self.stopped = False
+
+    def Stop(self) -> None:
+        self.stopped = True
 
     def IsExpired(self) -> bool:
         return False
@@ -224,6 +231,36 @@ check(
     "one outpost entry pulse drains every queued eligible item serially",
     [101, 102],
     drain_one_pulse((1, False, True), False),
+)
+
+
+def disabled_master_dispatches_nothing() -> tuple[list[int], bool]:
+    instance = object.__new__(Controller)
+    instance._map_context = lambda: (1, True, False)
+    instance._timer = FakeTimer()
+    instance._last_map_id = 1
+    instance._outpost_pass_pending = False
+    instance._active_item_id = 999
+    instance._active_node = object()
+    instance._active_started_at = 0.0
+    instance._pending_candidates = [(101, "materials")]
+    instance._diagnostic_targets = {}
+    instance._settings = types.SimpleNamespace(enabled=True)
+    instance._trace_execution = lambda *_args, **_kwargs: None
+    started: list[int] = []
+    instance._start_salvage = lambda item_id, _mode: started.append(item_id) or True
+    instance._process_active = lambda: started.append(-1)
+
+    automatic_salvage_state.enabled = False
+    Controller._pass(instance)
+    automatic_salvage_state.enabled = True
+    return started, instance._timer.stopped
+
+
+check(
+    "persisted disabled master prevents queued and active automatic salvage work",
+    ([], True),
+    disabled_master_dispatches_nothing(),
 )
 
 print("=" * 68)

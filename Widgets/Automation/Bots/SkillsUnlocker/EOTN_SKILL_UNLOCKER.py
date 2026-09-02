@@ -1,5 +1,5 @@
 import os
-from typing import List, Tuple, Optional, Callable, Generator
+from typing import Any, List, Tuple, Optional, Callable, Generator
 import types
 import Py4GW
 import PyImGui
@@ -102,6 +102,49 @@ def AddHenchies():
         yield from Routines.Yield.wait(250)
 
 
+# Captured from the Sifhalla-side shrine to Outrunner Remlok.  Keep the
+# ordinary route short of the NPC; XYAndDialog retains ownership of the final
+# approach and conversation.
+DRAKKAR_TO_REMLOK_ROUTE_XY = (
+    (6949.49, 23542.63), (6465.62, 23406.25), (5986.11, 23255.91),
+    (5505.69, 23099.61), (5014.58, 22978.79), (4523.75, 22876.45),
+    (4038.84, 22753.05), (3537.72, 22728.83), (3044.56, 22841.23),
+    (2575.94, 23020.46), (2108.35, 23202.46), (1649.56, 23404.88),
+    (1192.02, 23612.16), (733.86, 23818.65), (277.39, 24026.85),
+    (-215.87, 24159.21), (-719.95, 24188.83), (-1227.20, 24194.12),
+    (-1730.68, 24152.36), (-2234.14, 24106.43), (-2734.59, 24052.85),
+    (-3238.60, 23983.09), (-3735.50, 23879.83), (-4227.79, 23774.18),
+    (-4722.49, 23656.45), (-5224.21, 23593.97), (-5724.56, 23526.72),
+    (-6221.26, 23455.43), (-6718.96, 23383.18), (-7212.44, 23283.95),
+    (-7705.03, 23173.42), (-8205.31, 23134.74), (-8707.81, 23134.40),
+    (-9209.32, 23190.40), (-9632.75, 23465.46), (-9971.76, 23837.23),
+    (-10334.22, 24189.45), (-10668.65, 24562.33), (-10808.16, 24725.78),
+)
+
+# Sepulchre level-one route: walk over the captured Proof of Strength center,
+# then continue along the replacement route recorded for Anything You Can Do.
+SEPULCHRE_PROOF_OF_STRENGTH_ROUTE_XY = (
+    (-7578.23, -16344.19), (-7092.91, -16197.64), (-6599.15, -16087.31),
+    (-6110.94, -15971.19), (-5619.90, -15854.39), (-5366.00, -15794.00),
+)
+SEPULCHRE_LEVEL1_FRAGMENT_ROUTE_XY = (
+    (-5686.91, -15401.77), (-5944.79, -14965.62), (-6191.57, -14524.03),
+    (-6442.30, -14086.37), (-6575.49, -13594.38), (-6638.05, -13034.15),
+    (-6629.68, -12530.43), (-6565.80, -12033.74), (-6467.00, -11541.94),
+    (-6311.99, -11066.34), (-6137.25, -10596.09), (-5887.00, -10160.65),
+    (-5485.02, -9848.94), (-5563.38, -9354.86), (-5582.04, -8850.15),
+    (-5636.44, -8348.81), (-5865.55, -7897.86), (-6518.09, -7650.79),
+    (-7015.06, -7567.73), (-7483.88, -7388.38), (-7886.51, -7079.52),
+    (-8230.59, -6711.46), (-8512.65, -6287.49), (-8755.94, -5843.83),
+    (-9046.10, -5434.51), (-9470.73, -5160.39), (-9865.66, -4847.15),
+    (-10253.32, -4530.28), (-10700.16, -4265.96), (-11052.99, -3910.27),
+    (-11355.39, -3511.40), (-11634.45, -3093.65), (-11805.14, -2622.12),
+    (-11989.17, -2152.87), (-12191.88, -1691.31), (-12364.75, -1219.56),
+    (-12474.15, -727.36), (-12580.03, -230.63), (-12690.33, 261.16),
+    (-12800.59, 753.82), (-12827.22, 872.84),
+)
+
+
 def draw_window_light(
     self,
     main_child_dimensions: Tuple[int, int] = (520, 360),
@@ -112,7 +155,10 @@ def draw_window_light(
 
 
     if not self._config.ini_key_initialized:
-        self._config.ini_key = Settings(f"{f"BottingClass/bot_{self._config.bot_name}"}/{f"bot_{self._config.bot_name}.ini"}", "account").name
+        self._config.ini_key = Settings(
+            f"BottingClass/bot_{self._config.bot_name}/bot_{self._config.bot_name}.ini",
+            "account",
+        ).name
         self._config.ini_key_initialized = True
 
     if not self._config.ini_key:
@@ -124,13 +170,9 @@ def draw_window_light(
         p_open=True,
         flags=PyImGui.WindowFlags.AlwaysAutoResize,
     ):
-                self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
-                if additional_ui:
-                        additional_ui()
-                PyImGui.end_child()
-                PyImGui.end_tab_item()
-
-            
+        self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
+        if additional_ui:
+            additional_ui()
 
     ImGui.End(self._config.ini_key)
 
@@ -205,7 +247,7 @@ def UseTome21788AndBuyLichAura(bot, inv_cache) -> "Generator":
     yield from Routines.Yield.wait(300)
     ConsoleLog("Tome", "Done.")
 
-def _stop_clear_start_and_jump(step_name: str):
+def _stop_clear_start_and_jump(step_target: Any, step_name: Optional[str] = None):
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
     cfg = getattr(bot, "config", None)
@@ -242,10 +284,16 @@ def _stop_clear_start_and_jump(step_name: str):
         pass
 
     # ---- JUMP + START (ordering matters) ----
-    jumped = False
+    target_description = step_name or str(step_target)
+
+    def _jump_to_target():
+        if isinstance(step_target, int):
+            fsm.jump_to_state_by_step_number(step_target)
+        else:
+            fsm.jump_to_state_by_name(step_target)
+
     try:
-        fsm.jump_to_state_by_name(step_name)
-        jumped = True
+        _jump_to_target()
     except Exception as e:
         _log(f"[RUN] jump failed: {e}", PySystem.Console.MessageType.Error)
         return
@@ -269,11 +317,11 @@ def _stop_clear_start_and_jump(step_name: str):
         except Exception:
             pass
         try:
-            fsm.jump_to_state_by_name(step_name)
+            _jump_to_target()
         except Exception:
             pass
 
-    _log(f"[RUN] stop/clear -> jump -> start : {step_name}", PySystem.Console.MessageType.Warning)
+    _log(f"[RUN] stop/clear -> jump -> start : {target_description}", PySystem.Console.MessageType.Warning)
 
 # Anchor step (jumpable)
 _INIT_DONE = False
@@ -627,6 +675,9 @@ def Unlock_winds(bot: Botting) -> None:
 def Unlock_you_move_like_a_dwarf(bot: Botting) -> None:
     bot.States.AddHeader("[Unlock] You Move Like a Dwarf!")
 
+    bot.Map.Travel(target_map_name="Sifhalla")
+    bot.Wait.ForMapLoad(target_map_id=643)
+
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
@@ -655,8 +706,7 @@ def Unlock_you_move_like_a_dwarf(bot: Botting) -> None:
     bot.Move.XY(13952, -23063)  # Nulfastu, Earthbound
 
     bot.Wait.ForTime(45000)     # time window to kill + return
-    bot.Multibox.ResignParty()
-    bot.Wait.ForTime(3000)
+    bot.Map.Travel(target_map_name="Sifhalla")
     bot.Wait.ForMapLoad(target_map_id=643)
 
     bot.Move.XYAndDialog(14380, 23968, 0x833A07)  # Rewards
@@ -665,6 +715,7 @@ def Unlock_you_move_like_a_dwarf(bot: Botting) -> None:
 
 def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.States.AddHeader("[Unlock] I Am Unstoppable!")
+    bot.States.AddCustomState(_anchor, "IAU:TAKE_ANYTHING_YOU_CAN_DO")
 
     bot.Map.Travel(target_map_name="Sifhalla")
     bot.Wait.ForMapLoad(target_map_id=643)
@@ -676,6 +727,9 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
 
     # --- Part 1: Anything you can do ---
     bot.Move.XYAndDialog(14380, 23874, 0x833E01)  # Anything you can do
+    bot.States.AddCustomState(_anchor, "IAU:HUNT_AVARR_AND_WHITEOUT")
+    bot.Map.Travel(target_map_name="Sifhalla")
+    bot.Wait.ForMapLoad(target_map_id=643)
     bot.Move.XY(14682, 22900)
     bot.Move.XYAndExitMap(17000, 22872, target_map_id=546)
     bot.Wait.ForMapLoad(target_map_id=546)
@@ -695,7 +749,8 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.Move.XY(-1339, 22089)     # Kill Whiteout
     bot.Wait.ForTime(5000)        # extra time in case of wipe
 
-    bot.Multibox.ResignParty()
+    bot.States.AddCustomState(_anchor, "IAU:FRAGMENT_OF_ANTIQUITIES")
+    bot.Map.Travel(target_map_name="Sifhalla")
     bot.Wait.ForMapLoad(target_map_id=643)
 
     # --- Part 2: Fragment of Antiquities ---
@@ -703,22 +758,28 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.Move.XYAndExitMap(8832, 23870, target_map_id=513)
     bot.Wait.ForMapLoad(target_map_id=513)
 
+    bot.Move.FollowAutoPath(list(DRAKKAR_TO_REMLOK_ROUTE_XY[:-2]))
     bot.Move.XYAndDialog(-10926, 24732, 0x832901)  # Fragment of Antiquities
+    bot.Move.XY(-11293.05, 24868.94)
+    bot.Move.XY(-11603.00, 24975.00)
+    bot.Move.XY(-11763.68, 25412.23)
+    bot.Move.XY(-11904.67, 25896.55)
+    bot.Move.XY(-12009.97, 26331.78)
     bot.Move.XYAndExitMap(-12138, 26829, target_map_id=628)
     bot.Wait.ForMapLoad(target_map_id=628)
 
-    bot.Move.XY(-5343, -15773)     # proof of strength
-    bot.Move.XY(-6237, -9310)
-    bot.Move.XY(-7512, -8414)
-    bot.Move.XY(-12804, 1066)      # Defeat the Fragment of Antiquities
-    bot.Wait.ForTime(5000)         # extra time in case of wipe
+    bot.Move.FollowAutoPath(list(SEPULCHRE_PROOF_OF_STRENGTH_ROUTE_XY))
+    bot.Wait.ForTime(1500)  # allow the walk-over Proof of Strength gate to open
+    bot.Move.FollowAutoPath(list(SEPULCHRE_LEVEL1_FRAGMENT_ROUTE_XY))
+    bot.Wait.UntilOutOfCombat()
 
-    bot.Multibox.ResignParty()
-    bot.Wait.ForTime(3000)
+    bot.States.AddCustomState(_anchor, "IAU:CLAIM_ANYTHING_YOU_CAN_DO")
+    bot.Map.Travel(target_map_name="Sifhalla")
     bot.Wait.ForMapLoad(target_map_id=643)
 
     bot.Move.XYAndDialog(14380, 23968, 0x833E07)   # Rewards
     
+    bot.States.AddCustomState(_anchor, "IAU:COLD_AS_ICE")
     bot.Map.Travel(target_map_name="Sifhalla")
     bot.Wait.ForMapLoad(target_map_id=643)
 
@@ -795,6 +856,7 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.Wait.ForTime(20000)
     bot.Wait.ForMapLoad(target_map_id=643)
 
+    bot.States.AddCustomState(_anchor, "IAU:CLAIM_FINAL_REWARD")
     bot.Move.XYAndDialog(14380, 23968, 0x834407)  # Rewards
     bot.States.JumpToStepName("MENU_IDLE")
 
@@ -1579,6 +1641,66 @@ SKILLS: List[Skill] = _build_skills() # type: ignore
 
 FACTIONS = ("Asura", "Vanguard", "Norn", "Deldrimor")
 
+CHECKPOINT_LABEL_OVERRIDES = {
+    "IAU:TAKE_ANYTHING_YOU_CAN_DO": "Take Anything You Can Do",
+    "IAU:HUNT_AVARR_AND_WHITEOUT": "Hunt Avarr and Whiteout",
+    "IAU:FRAGMENT_OF_ANTIQUITIES": "Start Fragment of Antiquities",
+    "IAU:CLAIM_ANYTHING_YOU_CAN_DO": "Claim Anything You Can Do",
+    "IAU:COLD_AS_ICE": "Cold as Ice solo fight",
+    "IAU:CLAIM_FINAL_REWARD": "Claim final reward",
+}
+_route_skill_index = 0
+_route_step_index = 0
+_route_previous_skill_index = -1
+
+
+def _get_route_checkpoints():
+    """Expose non-header FSM states grouped by their owning skill route."""
+    cfg = getattr(bot, "config", None)
+    fsm = getattr(cfg, "FSM", None) if cfg else None
+    state_names = fsm.get_state_names() if fsm else []
+    if not state_names:
+        return []
+
+    anchor_positions = {}
+    for _, _, _, step_name, _, _ in SKILLS:
+        try:
+            anchor_positions[step_name] = state_names.index(step_name)
+        except ValueError:
+            continue
+
+    routes = []
+    ordered_anchors = [
+        (skill, anchor_positions[skill[3]])
+        for skill in SKILLS
+        if skill[3] in anchor_positions
+    ]
+    for route_number, (skill, start_index) in enumerate(ordered_anchors):
+        _, label, faction, step_name, _, _ = skill
+        end_index = (
+            ordered_anchors[route_number + 1][1]
+            if route_number + 1 < len(ordered_anchors)
+            else len(state_names)
+        )
+
+        checkpoints = []
+        visible_step = 0
+        for state_index in range(start_index, end_index):
+            state_name = state_names[state_index]
+            if state_name.startswith("[H]"):
+                continue
+            visible_step += 1
+            display_name = (
+                "Start entire route"
+                if state_name == step_name
+                else CHECKPOINT_LABEL_OVERRIDES.get(state_name, state_name)
+            )
+            checkpoints.append((f"{visible_step}. {display_name}", state_index, state_name))
+
+        if checkpoints:
+            routes.append((f"[{faction}] {label}", checkpoints))
+    return routes
+
 # -------------------------
 # MAIN ROUTINE: build FSM once (BDS style)
 # -------------------------
@@ -1614,18 +1736,13 @@ try:
     if HIDE_BDS_HEADER:
 
         def _draw_main_child_minimal(self, main_child_dimensions=(350, 275), icon_path="", iconwidth=96):
-            # --- Only keep Start/Stop toggle ---
             icon = IconsFontAwesome5.ICON_STOP_CIRCLE
-            legend = "  Stop"
-
-            if PyImGui.button(icon + legend + "##BotToggle"):
+            if PyImGui.button(icon + "  Stop##BotToggle"):
                     self._config.fsm_running = False
                     ConsoleLog(self._config.bot_name, "Script stopped", Console.MessageType.Info)
                     self._config.state_description = "Idle"
                     self._config.FSM.stop()
                     GLOBAL_CACHE.Coroutines.clear()
-
-
             PyImGui.dummy((0, 6))
 
         bot.UI._draw_main_child = types.MethodType(_draw_main_child_minimal, bot.UI)
@@ -1635,6 +1752,35 @@ except Exception:
 
 
 def draw_portal_ui():
+    global _route_skill_index, _route_step_index, _route_previous_skill_index
+
+    PyImGui.text("Route Controls:")
+    route_checkpoints = _get_route_checkpoints()
+    if route_checkpoints:
+        route_labels = [route_label for route_label, _ in route_checkpoints]
+        _route_skill_index = max(0, min(_route_skill_index, len(route_checkpoints) - 1))
+        _route_skill_index = PyImGui.combo("Route##SU_Route", _route_skill_index, route_labels)
+        if _route_skill_index != _route_previous_skill_index:
+            _route_step_index = 0
+            _route_previous_skill_index = _route_skill_index
+
+        checkpoints = route_checkpoints[_route_skill_index][1]
+        checkpoint_labels = [label for label, _, _ in checkpoints]
+        _route_step_index = max(0, min(_route_step_index, len(checkpoints) - 1))
+        _route_step_index = PyImGui.combo(
+            "Checkpoint##SU_Checkpoint", _route_step_index, checkpoint_labels
+        )
+        if PyImGui.button("Jump to checkpoint##SU_JumpCheckpoint"):
+            _, checkpoint_index, checkpoint_state = checkpoints[_route_step_index]
+            _stop_clear_start_and_jump(checkpoint_index, checkpoint_state)
+        if _route_step_index > 0:
+            PyImGui.text_wrapped(
+                "Jumping ahead assumes all earlier quest objectives are already complete."
+            )
+    else:
+        PyImGui.text_wrapped("Route steps are still being prepared.")
+    PyImGui.separator()
+
     PyImGui.text("Select Skill:")
     PyImGui.separator()
 

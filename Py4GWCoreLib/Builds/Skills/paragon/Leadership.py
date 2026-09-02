@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines
+from Py4GWCoreLib import Player, Routines
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
@@ -24,30 +24,17 @@ class Leadership:
         leadership = next((attribute for attribute in attributes if attribute.GetName() == "Leadership"), None)
         return int(getattr(leadership, "level", 0) or 0)
 
-    @staticmethod
-    def _get_effect_attribute_level(skill_id: int) -> int:
+    def IsHeroicRefrainSelfReady(self) -> bool:
+        """Return whether the self copy has completed the +4 bootstrap."""
+        heroic_refrain_id = Skill.GetID("Heroic_Refrain")
         player_agent_id = Player.GetAgentID()
-        effect = next(
-            (
-                item
-                for item in GLOBAL_CACHE.Effects.GetEffects(player_agent_id)
-                if item.skill_id == skill_id
-            ),
-            None,
+        return (
+            Routines.Checks.Agents.HasEffect(player_agent_id, heroic_refrain_id)
+            and self._get_leadership_level() >= 20
         )
-        return int(getattr(effect, "attribute_level", 0) or 0)
 
     def _heroic_refrain_needs_self_bootstrap(self, heroic_refrain_id: int) -> bool:
-        player_agent_id = Player.GetAgentID()
-        if not Routines.Checks.Agents.HasEffect(player_agent_id, heroic_refrain_id):
-            return True
-
-        leadership_level = self._get_leadership_level()
-        if leadership_level >= 20:
-            return False
-
-        cast_level = self._get_effect_attribute_level(heroic_refrain_id)
-        return cast_level > 0 and leadership_level > cast_level
+        return not self.IsHeroicRefrainSelfReady()
 
     #region H
     def Heroic_Refrain(self) -> BuildCoroutine:
@@ -65,14 +52,6 @@ class Leadership:
                 log=False,
                 aftercast_delay=250,
             ))
-        if not Routines.Checks.Agents.HasEffect(player_agent_id, heroic_refrain_id):
-            return (yield from self.build.CastSkillIDAndRestoreTarget(
-                skill_id=heroic_refrain_id,
-                target_agent_id=player_agent_id,
-                log=False,
-                aftercast_delay=250,
-            ))
-
         target_agent_id = self.build.ResolveAllyTarget(
             heroic_refrain_id,
             heroic_refrain,

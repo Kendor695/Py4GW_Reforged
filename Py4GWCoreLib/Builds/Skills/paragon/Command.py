@@ -25,43 +25,35 @@ class Command:
     #endregion
 
     #region C
-    def Cant_Touch_This(self, *, min_remaining_ms: int = 1500) -> BuildCoroutine:
-        """Anti-touch party shout.
+    def Cant_Touch_This(
+        self,
+        *,
+        maintain_refrains: bool = False,
+        min_remaining_ms: int = 1500,
+    ) -> BuildCoroutine:
+        """Anti-touch party shout and optional refrain-renewal heartbeat.
 
-        min_remaining_ms is how much of the running shout we are willing to
-        throw away by recasting early. Callers maintaining refrains should
-        pass 0.
-
-        Inferred, not confirmed in an injected client: a shout replaced before
-        it expires is believed not to fire the "a chant or shout ends" trigger
-        that reapplies an echo, so recasting early would silently skip a refrain
-        renewal for the whole party. What the shipped data actually states is
-        only the positive half - skill_descriptions.json describes a refrain as
-        renewed "whenever a chant or shout ends on that ally". The rest comes
-        from the PvX build notes. Every "let it expire first" guard on the
-        Paragon refrain bar rests on this, so it is the one assumption to settle
-        first if the rotation misbehaves in game.
+        Guild Wars treats this shout specially: reapplying it ends the existing
+        copy first, which triggers echoes. With its current 10-second recharge,
+        an HR bar can therefore cast it whenever ready even though the shout's
+        nominal duration is 20 seconds. Other callers retain the conservative
+        combat-only behavior and may wait until the running copy is nearly over.
         """
         cant_touch_this_id: int = Skill.GetID("Cant_Touch_This")
         player_agent_id = Player.GetAgentID()
 
         if not self.build.IsSkillEquipped(cant_touch_this_id):
             return False
-        if not self.build.IsInAggro():
+        if not maintain_refrains and not self.build.IsInAggro():
             return False
 
         if Routines.Checks.Agents.HasEffect(player_agent_id, cant_touch_this_id):
-            if min_remaining_ms <= 0:
-                # Presence is authoritative, the remaining time is not:
-                # GetEffectTimeRemaining only scans the effect list while
-                # HasEffect also accepts the buff list, so a shout reported as a
-                # buff reads 0 here. A caller asking us never to clip the shout
-                # would then clip it on every recharge - the exact failure this
-                # parameter exists to prevent.
-                return False
-            remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, cant_touch_this_id) or 0)
-            if remaining_ms > min_remaining_ms:
-                return False
+            if not maintain_refrains:
+                if min_remaining_ms <= 0:
+                    return False
+                remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, cant_touch_this_id) or 0)
+                if remaining_ms > min_remaining_ms:
+                    return False
 
         return (yield from self.build.CastSkillID(
             skill_id=cant_touch_this_id,

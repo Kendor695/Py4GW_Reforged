@@ -16,6 +16,31 @@ class Motivation:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
+    def _cast_combat_aria(self, skill_id: int) -> BuildCoroutine:
+        """Use a spell-triggered party chant without clipping our own copy."""
+        player_agent_id = Player.GetAgentID()
+
+        if not self.build.IsSkillEquipped(skill_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, skill_id):
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=skill_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    #region A
+    def Aria_of_Restoration(self) -> BuildCoroutine:
+        return (yield from self._cast_combat_aria(Skill.GetID("Aria_of_Restoration")))
+
+    def Aria_of_Zeal(self) -> BuildCoroutine:
+        return (yield from self._cast_combat_aria(Skill.GetID("Aria_of_Zeal")))
+    #endregion
+
     #region B
     def Blazing_Finale(self, *, max_target_range: float | None = None) -> BuildCoroutine:
         return (yield from self.build.SpreadEchoToAlly(Skill.GetID("Blazing_Finale"), max_range=max_target_range))
