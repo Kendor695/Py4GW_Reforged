@@ -1735,6 +1735,7 @@ def ToEyeOfTheNorthOutpost() -> BehaviorTree:
             BT.MoveAndExitMap(pos=(4684, -27869), target_map_name="Ice Cliff Chasms"),
             ConfigureAggressiveEnv(),
             BT.TakeBlessing(pos=(3579.07, -22007.27)),
+            BT.Wait(duration_ms=15000),  # Wait for Jora quest dialog to become available
             BT.DialogAtXY(pos=(3537.00, -21937.00), dialog_id=0x839104),
             BT.VanquishNode(steps=[(3743.31, -15862.36), (8267.89, -12334.58), (3607.21, -6937.32), (2557.23, -275.97)]),
             BT.WaitForMapLoad(map_id=642, timeout_ms=30000),
