@@ -1668,14 +1668,15 @@ def UnlockOlias() -> BehaviorTree:
             BT.MoveAndDialog(pos=(5117.00, 10515.00), dialog_id=0x830E04),
             ConfigureAggressiveEnv(),
             BT.VanquishNode(steps=[(8518.10, 9309.66), (8067.40, 5703.23), (5657.20, 4485.55), (4461.65, -710.88), (9973.11, 1581.00)]),
-            BT.Wait(duration_ms=20000),
+            BT.Wait(duration_ms=30000),
             BT.WaitForMapLoad(map_id=55, timeout_ms=30000),
             BT.LeaveParty(),
             BT.Travel(target_map_id=KAMADAN),
-            BT.VanquishNode(steps=[(-8149.02, 14900.65)]),
-                        BT.MoveAndDialog(pos=(-6480.00, 16331.00), dialog_id=0x830E07),
+            BT.Move((-8149.02, 14900.65)),
+            BT.MoveAndDialog(pos=(-6480.00, 16331.00), dialog_id=0x830E07),
         ],
     )
+    
 
 
 # ============================================================================
