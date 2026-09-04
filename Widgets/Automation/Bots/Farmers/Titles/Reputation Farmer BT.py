@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import os
 import json
+import types
 import PySystem
 
 from Py4GWCoreLib import HeroType, Map, Player, PyImGui
@@ -41,6 +42,11 @@ ROUTINE_NAME = "ReputationFarmerSequence"
 # Goal for the vanquish-family loop: max faction held on hand, then donate.
 FACTION_GOAL = 10_000
 VQ_MAX_RUNS = 6
+
+# Canthan faction (Luxon/Kurzick) blessings require bribing the faction priest
+# from character gold. Equalize to this amount on hand in the outpost so every
+# run can afford the blessing even after the previous run spent the gold.
+BLESSING_GOLD = 500
 
 # ---------------------------------------------------------------------------
 # Hero team setup (modeled on Outpost Unlocker BT.py)
@@ -577,6 +583,12 @@ def _killing_loop(route: Route) -> BehaviorTree:
         BT.Travel(target_map_id=route.outpost_id, random_travel=True, hard_mode=True),
         *_party_setup(route),
     ]
+    # Canthan faction routes bribe their faction priest for the blessing. Top up
+    # gold to BLESSING_GOLD BEFORE leaving the outpost; storage/no bank access
+    # is only available while still in the outpost, so this must precede the
+    # exit step below or a run can start too poor to obtain the blessing.
+    if route.key in ("kurzick", "luxon"):
+        children.append(BT.EqualizeGold(target_gold=BLESSING_GOLD, log=True))
     # Enter the explorable map. Most routes cross a plain zone line, but some
     # (e.g. Deldrimor via Sifhalla) require talking to an NPC at the entrance —
     # move to the entry point, send the dialog, then wait for the map to change.
@@ -724,8 +736,9 @@ def FarmFaction() -> BehaviorTree:
             )
         )
 
-    # Donation is faction-to-guild (Luxon/Kurzick only, handled by the
-    # Donate step); no gold prep is needed for any route.
+    # Donation is faction-to-guild (Luxon/Kurzick only, handled by the Donate
+    # step). Gold prep for the faction-priest blessing is done inside the
+    # killing loop (see _killing_loop), before the route exits the outpost.
     return BT.Sequence(
         name=f"Farm {route.name}",
         children=[
@@ -798,6 +811,10 @@ def ensure_botting_tree() -> BottingTree:
             configure_fn=_configure_upkeep,
         )
         botting_tree.UI.override_draw_config(draw_settings_tab)
+        # Bind a custom Main-tab body (farm dropdown + Start control) instead
+        # of the framework's planner "Start At" step list. Pattern mirrors
+        # EOTN_SKILL_UNLOCKER.py.
+        botting_tree.UI._draw_main_child = types.MethodType(_draw_main_child_custom, botting_tree.UI)
     return botting_tree
 
 
@@ -846,27 +863,68 @@ def draw_party_tab() -> None:
 
 
 def draw_settings_tab() -> None:
-    """Settings window with Faction and Party tabs."""
+    """Settings window with the Faction configuration."""
     global selected_key, botting_tree, _multi_account
 
     if PyImGui.begin_tab_bar("SettingsTabs"):
         if PyImGui.begin_tab_item("Faction"):
             _draw_faction_settings_tab()
             PyImGui.end_tab_item()
-        if not _multi_account:
-            if PyImGui.begin_tab_item("Party"):
-                draw_party_tab()
-                PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
+
+
+def _apply_route_selection(new_key: str) -> None:
+    """Switch the active faction route and rebuild the planner tree.
+
+    The planner tree is built from the step list once; rebuild it so the
+    Donate step only exists for Luxon/Kurzick routes. This resets the routine
+    to its first step, which is intended on a faction switch.
+    """
+    global selected_key, botting_tree
+    if new_key == selected_key:
+        return
+    selected_key = new_key
+    ensure_botting_tree().SetMainRoutine(
+        get_execution_steps(),
+        name=ROUTINE_NAME,
+        repeat=True,
+    )
+
+
+def _draw_route_selector() -> None:
+    """Radio-list farm picker shared by the Settings and Main tabs."""
+    route_index_by_key = {route.key: index for index, route in enumerate(ALL_ROUTES)}
+    selected_index = route_index_by_key.get(selected_key, 0)
+
+    for index, route in enumerate(ALL_ROUTES):
+        label = route.name + ("  (bounty loop)" if route.bounty else "")
+        selected_index = PyImGui.radio_button(label, selected_index, index)
+
+    _apply_route_selection(ALL_ROUTES[selected_index].key)
+
+
+def _draw_route_readout(route: Route) -> None:
+    """Live points / tier / session-goal readout for a selected route."""
+    points = _faction_points(route)
+    tiers = TITLE_TIERS.get(int(route.title_id), [])
+    tier_name = "Unranked"
+    for tier in tiers:
+        if points >= tier.required:
+            tier_name = tier.name
+    PyImGui.text(f"{route.name} points: {points:,}")
+    PyImGui.text(f"Current tier: {tier_name}")
+    threshold = _goal_threshold(route)
+    if route.bounty:
+        goal = f"max rank ({threshold:,} points)" if threshold is not None else "max rank"
+    else:
+        goal = f"{threshold:,} points" if threshold is not None else "max rank"
+    PyImGui.text(f"Session goal: {goal}")
 
 
 def _draw_faction_settings_tab() -> None:
     """Faction selector + multibox toggle + live title readout."""
     global selected_key, botting_tree, _multi_account
-    selected = _route_by_key(selected_key)
-    current = selected.name if selected else selected_key
-
-    PyImGui.text(f"Selected faction: {current}")
+    PyImGui.text("Faction")
     PyImGui.separator()
 
     new_multi = PyImGui.checkbox("Multi Account (Multibox) Team", _multi_account)
@@ -877,41 +935,79 @@ def _draw_faction_settings_tab() -> None:
         botting_tree = None
     PyImGui.separator()
 
-    route_index_by_key = {route.key: index for index, route in enumerate(ALL_ROUTES)}
-    selected_index = route_index_by_key.get(selected_key, 0)
-
-    for index, route in enumerate(ALL_ROUTES):
-        label = route.name + ("  (bounty loop)" if route.bounty else "")
-        selected_index = PyImGui.radio_button(label, selected_index, index)
-
-    new_key = ALL_ROUTES[selected_index].key
-    if new_key != selected_key:
-        selected_key = new_key
-        # The planner tree is built from the step list once; rebuild it so the
-        # Donate step only exists for Luxon/Kurzick routes. This resets the
-        # routine to its first step, which is intended on a faction switch.
-        ensure_botting_tree().SetMainRoutine(
-            get_execution_steps(),
-            name=ROUTINE_NAME,
-            repeat=True,
-        )
+    _draw_route_selector()
 
     PyImGui.separator()
+    selected = _route_by_key(selected_key)
     if selected is not None:
-        points = _faction_points(selected)
-        tiers = TITLE_TIERS.get(int(selected.title_id), [])
-        tier_name = "Unranked"
-        for tier in tiers:
-            if points >= tier.required:
-                tier_name = tier.name
-        PyImGui.text(f"{selected.name} points: {points:,}")
-        PyImGui.text(f"Current tier: {tier_name}")
-        threshold = _goal_threshold(selected)
-        if selected.bounty:
-            goal = f"max rank ({threshold:,} points)" if threshold is not None else "max rank"
+        _draw_route_readout(selected)
+
+
+def _draw_main_child_custom(
+    self,
+    main_child_dimensions=(350, 300),
+    icon_path="",
+    iconwidth=96,
+) -> None:
+    """Custom Main-tab body for the Reputation Farmer.
+
+    Bound onto botting_tree.UI in ensure_botting_tree() so the selected farm
+    shows as a dropdown where the framework normally draws the planner "Start
+    At" list, with the Start control directly below it.
+    """
+    status = self._main_status_snapshot()
+    if PyImGui.begin_table(
+        "botting_tree_header_table",
+        2,
+        PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH,
+    ):
+        PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
+        PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
+        PyImGui.table_next_row()
+        PyImGui.table_set_column_index(0)
+        self._draw_texture(icon_path, (float(iconwidth), float(iconwidth)))
+        PyImGui.table_set_column_index(1)
+        PyImGui.text(self.parent.bot_name)
+        selected = _route_by_key(selected_key)
+        current_farm = selected.name if selected else selected_key
+        PyImGui.text(f"Current farm: {current_farm}")
+        PyImGui.text(f"HeroAI: {self.parent.GetBlackboardValue('HEROAI_STATUS', 'Idle')}")
+        PyImGui.text(f"Planner: {self.parent.GetBlackboardValue('PLANNER_STATUS', 'Idle')}")
+        PyImGui.end_table()
+
+    # Selected farm dropdown (replaces the framework "Start At" step list).
+    route_index_by_key = {route.key: index for index, route in enumerate(ALL_ROUTES)}
+    current_index = route_index_by_key.get(selected_key, 0)
+    route_labels = [route.name for route in ALL_ROUTES]
+    selected_index = PyImGui.combo("Selected Farm", current_index, route_labels)
+    if selected_index != current_index:
+        _apply_route_selection(ALL_ROUTES[selected_index].key)
+
+    if self.parent.IsStarted():
+        if PyImGui.button("Stop##BottingTreeStop"):
+            self.parent.Stop()
+        PyImGui.same_line(0, -1)
+        if self.parent.IsPaused():
+            if PyImGui.button("Resume##BottingTreePause"):
+                self.parent.Pause(False)
         else:
-            goal = f"{threshold:,} points" if threshold is not None else "max rank"
-        PyImGui.text(f"Session goal: {goal}")
+            if PyImGui.button("Pause##BottingTreePause"):
+                self.parent.Pause(True)
+    else:
+        if PyImGui.button("Start##BottingTreeStart"):
+            self.parent.Start()
+
+    PyImGui.separator()
+    self._colored_bool("Started", status["started"])
+    self._colored_bool("Paused", status["paused"])
+    self._colored_bool("Headless HeroAI Enabled", status["headless_heroai_enabled"])
+    self._colored_bool("Looting Enabled", status["looting_enabled"])
+    self._colored_bool("Resurrection Scroll Enabled", status["resurrection_scroll_enabled"])
+    self._colored_bool("Account Isolation Enabled", status["account_isolation_enabled"])
+    self._colored_bool("Pause On Combat Enabled", status["pause_on_combat_enabled"])
+    self._colored_bool("Combat Routine Active", status["combat_active"])
+    self._colored_bool("Loot Routine Active", status["looting_active"])
+
 
 def main() -> None:
     global initialized
@@ -921,9 +1017,13 @@ def main() -> None:
         initialized = True
     tree = ensure_botting_tree()
     tree.tick()
+    # Party formation is single-account only; render it as its own top-level
+    # tab (the framework appends extra_tabs after the Debug tab).
+    extra_tabs = [("Party", draw_party_tab)] if not _multi_account else None
     tree.UI.draw_window(
-        icon_path=os.path.join(PySystem.Console.get_projects_path(), "Assets", "Textures", "Skill_Icons", MODULE_ICON),
+        icon_path=os.path.join(PySystem.Console.get_projects_path(), MODULE_ICON),
         main_child_dimensions=(520, 420),
+        extra_tabs=extra_tabs,
     )
 
 
