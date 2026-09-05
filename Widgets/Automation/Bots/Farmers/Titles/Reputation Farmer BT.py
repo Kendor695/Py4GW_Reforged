@@ -315,8 +315,9 @@ SUNSPEAR_ROUTE = Route(
     outpost_id=381,      # Yohlon Haven
     explorable_id=380,   # Arkjok Ward
     exit_pos=(4603.0, 904.0),
+    pre_path=[(-998.09, 1505.14)],
     bounty=True,
-    bounty_pos=(-17223.0, -12543.0),
+    bounty_pos=(-17229.18, -12695.88),
     bounty_dialog=0x85,
     kill_path=[
         (-18697.0, -12296.0),
@@ -662,12 +663,21 @@ def _bounty_loop(route: Route) -> BehaviorTree:
 
     children: List[BehaviorTree] = [
         BT.Travel(target_map_id=route.outpost_id, random_travel=True),
-        BT.MoveAndExitMap(route.exit_pos, target_map_id=route.explorable_id),
     ]
+    # Pre-path: optional manual waypoints in the outpost from spawn toward the
+    # exit. They steer the autopath around a stuck point before the exit
+    # crossing (Sunspear: an NPC in Yohlon Haven). A no-op when unset.
+    for point in route.pre_path:
+        children.append(BT.Move(point, tolerance=150.0, log=True))
+    children.append(BT.MoveAndExitMap(route.exit_pos, target_map_id=route.explorable_id))
     children.extend(AggressiveEnv())
-    # Walk to the bounty NPC first; DialogAtXY only targets/interacts near the
-    # point and has no move leg of its own.
+    # Walk into targeting range of the bounty NPC first — DialogAtXY only targets
+    # the nearest NPC within target_distance of bounty_pos, so we must get close
+    # before it dialogs (otherwise the dialog node times out). Keeping bounty_pos
+    # as the anchor also picks the right Wandering Priest (there is one per exit).
     children.append(BT.Move(route.bounty_pos, tolerance=120.0, log=True))
+    # Accept the bounty by targeting the nearest Wandering Priest to bounty_pos
+    # and sending the bounty dialog (dialog id route.bounty_dialog).
     children.append(
         BT.DialogAtXY(
             route.bounty_pos,
