@@ -567,7 +567,10 @@ class FSM:
             try:
                 next(routine)
             except StopIteration:
-                self.managed_coroutines.remove(routine)
+                try:
+                    self.managed_coroutines.remove(routine)
+                except ValueError:
+                    pass
             except Exception as e:
                 state_name = self.current_state.name if self.current_state else "Unknown"
                 tb = traceback.format_exc()
