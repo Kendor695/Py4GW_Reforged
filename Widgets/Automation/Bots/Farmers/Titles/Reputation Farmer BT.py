@@ -21,14 +21,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import os
 import json
+import time
 import types
 import PySystem
 
-from Py4GWCoreLib import HeroType, Map, Player, PyImGui
+from Py4GWCoreLib import GLOBAL_CACHE, HeroType, Map, Player, PyImGui
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -42,6 +43,12 @@ ROUTINE_NAME = "ReputationFarmerSequence"
 # Goal for the vanquish-family loop: max faction held on hand, then donate.
 FACTION_GOAL = 10_000
 VQ_MAX_RUNS = 6
+# A run that fails repeatedly and instantly is retried in place; this budget
+# must comfortably exceed a legitimate full run (VQ runs can take tens of
+# minutes), because the repeater's timeout covers total elapsed time of the
+# child, RUNNING included. After it, FAILURE reaches the planner, which
+# restarts the named step from the outpost.
+RUN_RETRY_TIMEOUT_MS = 30 * 60 * 1000
 
 # Canthan faction (Luxon/Kurzick) blessings require bribing the faction priest
 # from character gold. Equalize to this amount on hand in the outpost so every
@@ -84,7 +91,16 @@ class PartyHeroSlot:
     template: str = ""
 
 # Consumable upkeeps (mirrors the shared CONSUMABLE_UPKEEPS list).
-from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import CONSUMABLE_UPKEEPS
+from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import (
+    CONSUMABLE_UPKEEPS,
+    CONSET_UPKEEPS,
+)
+
+# Consets are the three EotN core consumables; pcons are everything else the
+# shared upkeep list maintains. The settings tab gates each group separately.
+PCON_UPKEEPS: Tuple[int, ...] = tuple(
+    int(model_id) for model_id in CONSUMABLE_UPKEEPS if int(model_id) not in CONSET_UPKEEPS
+)
 
 
 class Faction(Enum):
@@ -315,6 +331,8 @@ SUNSPEAR_ROUTE = Route(
     outpost_id=381,      # Yohlon Haven
     explorable_id=380,   # Arkjok Ward
     exit_pos=(4603.0, 904.0),
+    # Zudaash-Dejarin (-874, 1367) stands on the direct town-to-portal line
+    # and stalls the autopath; this waypoint steers above him (verified live).
     pre_path=[(-998.09, 1505.14)],
     bounty=True,
     bounty_pos=(-17229.18, -12695.88),
@@ -371,6 +389,41 @@ def _route_by_key(key: str) -> Optional[Route]:
         if route.key == key:
             return route
     return None
+
+# ---------------------------------------------------------------------------
+# Portal proximity gate
+# ---------------------------------------------------------------------------
+# Resign always drops the party at the default outpost spawn (verified live:
+# the zone-out-and-back entry-point trick does not affect resign returns), so
+# the town-to-portal walk runs every cycle. Pre-path steering legs are skipped
+# adaptively when the spawn ever ends up portal-side anyway.
+
+
+def _near_exit_gate(route: Route, radius: float = 1500.0) -> BehaviorTree:
+    """Skip-success when the player is already near the exit portal.
+
+    Used to make pre-path steering adaptive: from a portal-side spawn (after
+    the resign spawn trick) the steering leg is pointless; from the default
+    mid-town spawn it still runs.
+    """
+
+    def _near_exit() -> BehaviorTree.NodeState:
+        try:
+            player_x, player_y = Player.GetXY()
+        except Exception:
+            return BehaviorTree.NodeState.FAILURE
+        dx = player_x - route.exit_pos[0]
+        dy = player_y - route.exit_pos[1]
+        return (
+            BehaviorTree.NodeState.SUCCESS
+            if (dx * dx + dy * dy) <= radius * radius
+            else BehaviorTree.NodeState.FAILURE
+        )
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(name="Already Near Exit Portal?", action_fn=_near_exit)
+    )
+
 # ---------------------------------------------------------------------------
 # Runtime state
 # ---------------------------------------------------------------------------
@@ -382,6 +435,20 @@ selected_key: str = "vanguard"
 
 # Party mode: False = single account with hero team, True = multibox accounts.
 _multi_account: bool = False
+
+# Consumable groups maintained by the upkeep service while the bot runs.
+_activate_conset: bool = True
+_activate_pcons: bool = True
+
+
+def _enabled_consumable_upkeeps() -> Tuple[int, ...]:
+    """Consumable model IDs the upkeep service should maintain, per toggles."""
+    enabled: List[int] = []
+    if _activate_conset:
+        enabled.extend(int(model_id) for model_id in CONSET_UPKEEPS)
+    if _activate_pcons:
+        enabled.extend(PCON_UPKEEPS)
+    return tuple(dict.fromkeys(enabled))
 
 
 # ---------------------------------------------------------------------------
@@ -643,6 +710,15 @@ def _killing_loop(route: Route) -> BehaviorTree:
         )
 
     children.append(BT.WaitUntilOutOfCombat())
+    # Resign back to the outpost. multi_account dispatches the shared resign
+    # command to every account (see wrappers.Resign -> Multibox.ResignAllAccounts).
+    children.append(
+        BT.Resign(
+            wait_for_map_load=True,
+            target_map_id=route.outpost_id,
+            multi_account=_multi_account,
+        )
+    )
 
     return BT.Sequence(name=f"{route.name} VQ Run", children=children)
 
@@ -662,13 +738,30 @@ def _bounty_loop(route: Route) -> BehaviorTree:
         )
 
     children: List[BehaviorTree] = [
-        BT.Travel(target_map_id=route.outpost_id, random_travel=True),
+        # Unconditional Travel: it doubles as the post-resign settle step the
+        # hero-team rebuild depends on (verified live: skipping it when already
+        # in the outpost breaks hero loading).
+        BT.Travel(target_map_id=route.outpost_id, random_travel=True, hard_mode=True),
+        # Bounty runs need the hero team just as much as the VQ loops; without
+        # this the bot walks into Arkjok solo (verified live).
+        *_party_setup(route),
     ]
     # Pre-path: optional manual waypoints in the outpost from spawn toward the
     # exit. They steer the autopath around a stuck point before the exit
-    # crossing (Sunspear: an NPC in Yohlon Haven). A no-op when unset.
+    # crossing (Sunspear: an NPC in Yohlon Haven). Adaptive: when the party
+    # already spawns near the portal (resign spawn trick), the gate skips it.
     for point in route.pre_path:
-        children.append(BT.Move(point, tolerance=150.0, log=True))
+        children.append(
+            BehaviorTree(
+                BehaviorTree.SelectorNode(
+                    name="Pre-Path Needed?",
+                    children=[
+                        _near_exit_gate(route),
+                        BT.Move(point, tolerance=150.0, log=True),
+                    ],
+                )
+            )
+        )
     children.append(BT.MoveAndExitMap(route.exit_pos, target_map_id=route.explorable_id))
     children.extend(AggressiveEnv())
     # Walk into targeting range of the bounty NPC first — DialogAtXY only targets
@@ -699,6 +792,15 @@ def _bounty_loop(route: Route) -> BehaviorTree:
         )
 
     children.append(BT.WaitUntilOutOfCombat())
+    # Same team resign as the VQ loop: in multibox every account resigns via
+    # the shared command instead of relying on the next run's Travel.
+    children.append(
+        BT.Resign(
+            wait_for_map_load=True,
+            target_map_id=route.outpost_id,
+            multi_account=_multi_account,
+        )
+    )
 
     return BT.Sequence(name=f"{route.name} Bounty Run", children=children)
 # ---------------------------------------------------------------------------
@@ -736,12 +838,22 @@ def FarmFaction() -> BehaviorTree:
 
     def _one_run() -> BehaviorTree:
         run_loop = _bounty_loop(route) if route.bounty else _killing_loop(route)
+        # Retry the run in place on transient failures (a single autopath miss
+        # used to bubble straight to the planner and bounce the bot back to
+        # the outpost). The timeout hands genuinely stuck runs to the planner.
+        retried_run = BehaviorTree(
+            BehaviorTree.RepeaterUntilSuccessNode(
+                child=run_loop.root,
+                timeout_ms=RUN_RETRY_TIMEOUT_MS,
+                name=f"{route.name} Run Retry",
+            )
+        )
         return BehaviorTree(
             BehaviorTree.SelectorNode(
                 name=f"{route.name} Run Or Skip",
                 children=[
                     BehaviorTree(BehaviorTree.ActionNode(name="Goal Reached?", action_fn=_goal_reached)),
-                    run_loop,
+                    retried_run,
                 ],
             )
         )
@@ -803,7 +915,7 @@ def _configure_upkeep(tree: BottingTree) -> None:
         looting_enabled=True,
         resurrection_scroll=True,
         auto_inventory_handler_enabled=True,
-        consumable_upkeeps=tuple(int(m) for m in CONSUMABLE_UPKEEPS),
+        consumable_upkeeps=_enabled_consumable_upkeeps(),
         enable_party_wipe_recovery=True,
     )
 
@@ -880,7 +992,141 @@ def draw_settings_tab() -> None:
         if PyImGui.begin_tab_item("Faction"):
             _draw_faction_settings_tab()
             PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Consumables"):
+            _draw_consumables_settings()
+            PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
+
+
+def _draw_consumables_settings() -> None:
+    """Cons / Pcons usage toggles; applied live to the running tree."""
+    global _activate_conset, _activate_pcons
+
+    PyImGui.text("Consumable Upkeep")
+    PyImGui.separator()
+    PyImGui.text("Only affects items already in inventory or storage-restocked elsewhere.")
+
+    new_conset = PyImGui.checkbox("Use Consets (Essence / Grail / Armor)", _activate_conset)
+    if new_conset != _activate_conset:
+        _activate_conset = new_conset
+        _apply_consumable_upkeep_change()
+
+    new_pcons = PyImGui.checkbox("Use Pcons (Cupcake, Kabob, Pie, ...)", _activate_pcons)
+    if new_pcons != _activate_pcons:
+        _activate_pcons = new_pcons
+        _apply_consumable_upkeep_change()
+
+
+def _apply_consumable_upkeep_change() -> None:
+    """Re-push the upkeep service so toggles apply without a tree rebuild.
+
+    ConfigureUpkeep only replaces the upkeep trees; it does not reset the
+    running planner (same runtime-reconfigure pattern as Shards Of Orr BT).
+    """
+    if botting_tree is None:
+        return
+    _configure_upkeep(botting_tree)
+
+# ---------------------------------------------------------------------------
+# Statistics tab (per-account title progress; modeled on Sunspear title farm)
+# ---------------------------------------------------------------------------
+_session_baselines: Dict[str, int] = {}
+_session_start_times: Dict[str, float] = {}
+
+
+def _stats_accounts() -> List[Any]:
+    """Accounts shown on the Statistics tab.
+
+    Multibox mode shows every shared-memory account; single-account mode shows
+    only the local account (heroes do not carry reputation titles).
+    """
+    accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _multi_account:
+        return accounts
+    own_email = str(Player.GetAccountEmail() or "").strip()
+    filtered = [
+        account for account in accounts
+        if str(getattr(account, "AccountEmail", "") or "").strip() == own_email
+    ]
+    if filtered:
+        return filtered
+    own_name = str(Player.GetName() or "")
+    return [
+        account for account in accounts
+        if str(getattr(account.AgentData, "CharacterName", "") or "") == own_name
+    ]
+
+
+def _draw_title_track(route: Route) -> None:
+    """Per-account title/tier/points-to-next readout for the selected route."""
+    global _session_baselines, _session_start_times
+
+    title_idx = int(route.title_id)
+    tiers = TITLE_TIERS.get(route.title_id, [])
+    now = time.time()
+    accounts = _stats_accounts()
+    if not accounts:
+        PyImGui.text("No account statistics available yet.")
+        return
+
+    for account in accounts:
+        try:
+            name = str(account.AgentData.CharacterName or "Unknown")
+            pts = int(account.TitlesData.Titles[title_idx].CurrentPoints)
+        except Exception:
+            continue
+
+        if name not in _session_baselines:
+            _session_baselines[name] = pts
+            _session_start_times[name] = now
+
+        tier_name = "Unranked"
+        tier_rank = 0
+        tier_max_rank = len(tiers)
+        next_required = tiers[0].required if tiers else 0
+        for index, tier in enumerate(tiers):
+            if pts >= tier.required:
+                tier_rank = index + 1
+                tier_name = tier.name
+                next_required = tiers[index + 1].required if index + 1 < len(tiers) else tier.required
+            else:
+                next_required = tier.required
+                break
+
+        gained = pts - _session_baselines[name]
+        elapsed = now - _session_start_times[name]
+        formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+        pts_per_hour = int(gained / elapsed * 3600) if elapsed > 0 else 0
+        is_maxed = bool(tiers) and pts >= tiers[-1].required
+        points_to_next = max(next_required - pts, 0)
+
+        PyImGui.separator()
+        PyImGui.text(f"{name} - {tier_name} [{tier_rank}/{tier_max_rank}]")
+        PyImGui.text(f"Total Points: {pts:,}")
+        if is_maxed:
+            PyImGui.text("Next Rank: Maxed")
+            PyImGui.text("Points To Go: 0")
+            PyImGui.progress_bar(1.0, -1, 0, "Complete")
+            PyImGui.text_colored("Maximum rank achieved. Title complete.", (0.4, 1.0, 0.4, 1.0))
+        else:
+            PyImGui.text(f"Next Rank: {next_required:,}")
+            PyImGui.text(f"Points To Go: {points_to_next:,}")
+            total = max(next_required, 1)
+            PyImGui.progress_bar(min(max(pts, 0) / total, 1.0), -1, 0, f"{max(pts, 0):,} / {total:,}")
+        PyImGui.text(f"+{gained:,} points ({pts_per_hour:,}/hr) - Running for: {formatted_time}")
+
+
+def _draw_statistics_tab() -> None:
+    """Top-level Statistics tab showing the selected route's title progress."""
+    selected = _route_by_key(selected_key)
+    if selected is None:
+        PyImGui.text("No route selected.")
+        return
+    if PyImGui.begin_child("ReputationFarmerStatisticsChild", (500, 620), False):
+        _draw_title_track(selected)
+    PyImGui.end_child()
+
+
 
 
 def _apply_route_selection(new_key: str) -> None:
@@ -1028,8 +1274,11 @@ def main() -> None:
     tree = ensure_botting_tree()
     tree.tick()
     # Party formation is single-account only; render it as its own top-level
-    # tab (the framework appends extra_tabs after the Debug tab).
-    extra_tabs = [("Party", draw_party_tab)] if not _multi_account else None
+    # tab (the framework appends extra_tabs after the Debug tab). The
+    # Statistics tab is always present and shows the selected route's title.
+    extra_tabs: List[Tuple[str, Callable[[], None]]] = [("Statistics", _draw_statistics_tab)]
+    if not _multi_account:
+        extra_tabs.append(("Party", draw_party_tab))
     tree.UI.draw_window(
         icon_path=os.path.join(PySystem.Console.get_projects_path(), MODULE_ICON),
         main_child_dimensions=(520, 420),
