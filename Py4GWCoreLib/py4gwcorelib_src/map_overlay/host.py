@@ -29,6 +29,9 @@ from .projection import Projection
 from .projection import RotatingProjection
 from .terrain import Terrain
 
+from .maps_data import get_travel_portals
+from .maps_data import get_teleports
+
 MODULE_NAME = "Map Overlay"
 
 
@@ -118,6 +121,62 @@ class MapOverlay:
                 PyImGui.draw_list_add_circle(px, py, radius, shapes.pack(pr.compass_outline), seg, 1.0)
                 PyImGui.draw_list_add_circle(px, py, radius - (2.85 * zoom), color, seg, 5.7 * zoom)
 
+    def _draw_portals_and_teleports(self, proj: AxisAlignedProjection) -> None:
+        pt = self.cfg.portals_and_teleports
+        zoom = proj.zoom + proj.mega_zoom
+        
+        map_id = Map.GetMapID()
+        left, top, right, bottom = proj.content_rect()
+        margin = 40.0
+        clip = (left - margin, top - margin, right + margin, bottom + margin)
+
+        if pt.show_portals:
+            portals = get_travel_portals(map_id)
+            color_portals_packed = shapes.pack(pt.color_portals)
+            seg = shapes.segments_for_radius(pt.radius_portals)
+            
+            for portal in portals:
+                x = portal[0]
+                y = portal[1]
+                #z = portal[2]
+                #extra = portal[3]
+
+                sx, sy = proj.game_to_screen(x, y)
+                if clip is not None and (sx < clip[0] or sx > clip[2] or sy < clip[1] or sy > clip[3]):
+                    continue
+            
+                PyImGui.draw_list_add_circle(sx, sy, pt.radius_portals, color_portals_packed, seg, 5.7 * zoom)
+                
+        if pt.show_teleports:
+            teleports = get_teleports(map_id)
+            color_teleports_packed = shapes.pack(pt.color_teleports)
+            seg = shapes.segments_for_radius(pt.radius_teleports)
+            
+            for teleport in teleports:
+                source_x = teleport[0]
+                source_y = teleport[1]
+                #source_z = teleport[2]
+                #source_floor = teleport[3]
+
+                dest_x = teleport[4]
+                dest_y = teleport[5]
+                #dest_z = teleport[6]
+                #dest_floor = teleport[7]
+
+                #teleport_type = teleport[8]
+
+                sx, sy = proj.game_to_screen(source_x, source_y)
+                if clip is not None and (sx < clip[0] or sx > clip[2] or sy < clip[1] or sy > clip[3]):
+                    continue
+            
+                PyImGui.draw_list_add_circle(sx, sy, pt.radius_teleports, color_teleports_packed, seg, 5.7 * zoom)
+                
+                sx2, sy2 = proj.game_to_screen(dest_x, dest_y)
+                if clip is not None and (sx2 < clip[0] or sx2 > clip[2] or sy2 < clip[1] or sy2 > clip[3]):
+                    continue
+            
+                PyImGui.draw_list_add_circle(sx2, sy2, pt.radius_teleports, color_teleports_packed, seg, 5.7 * zoom)
+
     # ── main frame ───────────────────────────────────────────────────────────────────────
     def draw(self) -> None:
         cfg = self.cfg
@@ -152,6 +211,8 @@ class MapOverlay:
             self._draw_rings(proj)
             self.agent_pass.draw(proj)
             self.interaction.draw_overlay(proj)
+            if cfg.mode is OverlayMode.MISSION:
+                self._draw_portals_and_teleports(proj) # Easier to see when its drawn on top of everything
         self._end_window()
 
         self.interaction.update(proj)

@@ -352,6 +352,17 @@ class PlayerRangeConfig:
     color: RGBA = (255, 255, 255, 40)              # shared bubble/band colour
     compass_outline: RGBA = (0, 0, 0, 255)         # hairline at the exact compass radius
 
+@dataclass
+class PortalsAndTeleportsConfig:
+    """Mission-map-exclusive portal and teleport indicators.
+    """
+    
+    show_portals: bool = True
+    show_teleports: bool = True
+    color_portals: RGBA = (255, 0, 255, 255)
+    color_teleports: RGBA = (255, 255, 255, 255)
+    radius_portals: float = 3.0
+    radius_teleports: float = 3.0
 
 @dataclass
 class OverlayConfig:
@@ -361,6 +372,7 @@ class OverlayConfig:
     markers: dict[str, MarkerStyle] = field(default_factory=default_markers)
     rings: list[Ring] = field(default_factory=default_rings)
     player_ranges: PlayerRangeConfig = field(default_factory=PlayerRangeConfig)
+    portals_and_teleports: PortalsAndTeleportsConfig = field(default_factory=PortalsAndTeleportsConfig)
     custom_markers: dict[str, CustomMarker] = field(default_factory=dict)
     terrain: TerrainConfig = field(default_factory=TerrainConfig)
     snap: SnapConfig = field(default_factory=SnapConfig)
