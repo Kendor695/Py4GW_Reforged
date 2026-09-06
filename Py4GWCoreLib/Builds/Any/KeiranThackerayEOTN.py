@@ -9,7 +9,17 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range
 from .HeroAI import HeroAI_Build
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
-_MIKU_MODEL_ID = 8513
+# BUGFIX (2026-08-31): was 8513 -- a value derived from a bulk +57 id
+# renumbering pass (commit 45f08d25) applied to _PRIORITY_TARGET_MODELS,
+# never actually verified against Miku live. Confirmed live via a MikuDiag
+# ally-array dump: once inside the mission (map 849), the only ally present
+# for the entire run is a single stable (agent_id, model_id) pair with
+# model_id == 1 -- no heroes/henchmen come along on this mission, so that
+# lone ally has to be her. Low-confidence in isolation (a generic-looking
+# id), but it held steady across 80+s of combat and movement with no other
+# ally ever appearing -- watch the next live run for false triggers (some
+# other agent also reading model_id 1) before treating this as final.
+_MIKU_MODEL_ID = 1
 
 _SHADOWSONG_ID          = 4264
 _SOS_SPIRIT_IDS         = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
@@ -134,7 +144,7 @@ def _nearest_from(array, origin_x: float, origin_y: float, max_dist: float = 0) 
 
 class KeiranThackerayEOTN(BuildMgr):
     def __init__(self, fsm=None, debug_fn: Optional[Callable[[], bool]] = None):
-        super().__init__(name="Keiran HeroAI Build")
+        super().__init__(name="Keiran HeroAI Build", is_combat_automator_compatible=False)
         self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
         self.hero_ai_handler: BuildMgr = HeroAI_Build(standalone_fallback=True)
 
@@ -158,7 +168,13 @@ class KeiranThackerayEOTN(BuildMgr):
         self.miku_lazy_at         = 0.0
         self.miku_reset_at        = 0.0
         self.miku_reset_active    = False
+        self.miku_ever_seen       = False
         self.miku_retrace_issued  = False
+        self.miku_reset_gave_up   = False
+        self.miku_dead_pause_at   = 0.0
+        self.miku_dead_gave_up    = False
+        self.spirit_pause_at      = 0.0
+        self.spirit_avoid_gave_up = False
 
         # Miku retrace path-following state
         self._retrace_ph          = None
@@ -244,10 +260,137 @@ class KeiranThackerayEOTN(BuildMgr):
         else:
             self.player_combat = False
 
+        # TEMP DIAG (2026-08-14): checking whether pause_on_danger_fn
+        # (InDanger(Longbow)) is stuck True right from mission spawn, before
+        # the first bot.Move.XY waypoint ever completes -- would deadlock
+        # FollowPath (can't approach the first group because it's already
+        # "in danger" of it). Remove once confirmed/ruled out.
+        # 2026-08-14 update: also logging loot_pause()'s own condition
+        # (MOVE_src.py) -- it pauses movement as long as ANY loot sits
+        # within Earshot, with no timeout. If that loot's owner_id is
+        # someone else's (a Hero) and never gets claimed, movement waits
+        # forever with every other flag reading normal. Prime suspect for
+        # the freezes that survived the PickUpLoot owner_id fix.
+        if self.debug and now - getattr(self, "_diag_last_log", 0.0) >= 2.0:
+            self._diag_last_log = now
+            from Py4GWCoreLib.py4gwcorelib_src.system_settings.loot_filters import LootFilters
+            _loot_array = LootFilters().GetLootArray(Range.Earshot.value)
+            _loot_owners = [(iid, Agent.GetItemAgentOwnerID(iid)) for iid in _loot_array]
+            PySystem.Console.Log(
+                "Diag",
+                f"pos=({player_x:.0f},{player_y:.0f}) "
+                f"InDanger(Longbow)={Routines.Checks.Agents.InDanger(aggro_area=Range.Longbow)} "
+                f"PartyMemberDead={Routines.Checks.Party.IsPartyMemberDead()} "
+                f"InCastingProcess={Routines.Checks.Skills.InCastingProcess()} "
+                f"player_combat={self.player_combat} "
+                f"CanAct={Routines.Checks.Player.CanAct()} "
+                f"fsm_paused={self.fsm.is_paused() if self.fsm is not None else 'no-fsm'} "
+                f"fsm_state={self.fsm.get_current_step_name() if self.fsm is not None else 'no-fsm'} "
+                f"loot_array_len={len(_loot_array)} loot_owners={_loot_owners}",
+                PySystem.Console.MessageType.Warning,
+            )
+
+        # ── Stuck-loot watchdog (2026-08-14) ────────────────────────────────
+        # PickUpLoot() (Widgets/System/Messaging.py) can silently fail to
+        # resolve an unassigned/party-split gold pile (owner_id=0) without
+        # ever reaching its own report_failed() blacklist call -- confirmed
+        # live: the same loot agent sat unchanged in GetLootArray() for 8-9
+        # minutes straight on two separate accounts. loot_pause()
+        # (MOVE_src.py) pauses ALL movement while any loot sits in Earshot,
+        # so that one stuck pile froze the whole bot. HeroAI's native pickup
+        # doesn't hit this; it's specific to the manual PickUpLoot() path
+        # this bot relies on, since HeroAI is disabled here. Give a stuck
+        # item a grace period, then blacklist it ourselves via the same
+        # public LootFilters API PickUpLoot() would have used, so movement
+        # can resume. Costs an occasional missed gold pile -- the
+        # alternative was losing 8+ minutes per occurrence.
+        #
+        # 2026-08-14 update: the grace period only counts wall-clock time,
+        # not time the bot was actually free to attempt a pickup. upkeep_
+        # auto_loot() (Upkeepers.py) never even sends PickUpLoot while the
+        # bot is in combat, so a wanted item (e.g. a Confessor Order) sitting
+        # through a fight got blacklisted before it was ever attempted.
+        # Confirmed live -- switched to counting only time observed while
+        # not in combat and able to act, so combat delays no longer count
+        # against the grace period. A single genuine PickUpLoot() attempt
+        # tops out around 13-14s (10s FollowPath timeout + 3s interact
+        # timeout + waits), so 20s of *free* time is a safe margin while
+        # still far short of the multi-minute freeze this guards against.
+        # Fallback default must be a fixed epoch (0.0), not `now` -- otherwise
+        # dt = now - now = 0.0 on every call, the >=1.0 gate never opens, and
+        # the attribute needed to break out of that never gets set. Same
+        # bootstrap pattern as the [Diag] block above.
+        _loot_watchdog_last_check = getattr(self, "_loot_watchdog_last_check", 0.0)
+        _loot_watchdog_dt = now - _loot_watchdog_last_check
+        if _loot_watchdog_dt >= 1.0:
+            self._loot_watchdog_last_check = now
+            from Py4GWCoreLib.py4gwcorelib_src.system_settings.loot_filters import LootFilters
+            _current_loot = set(LootFilters().GetLootArray(Range.Earshot.value))
+            _free_time = getattr(self, "_loot_free_time", None)
+            if _free_time is None:
+                _free_time = {}
+                self._loot_free_time = _free_time
+            for _agent_id in list(_free_time.keys()):
+                if _agent_id not in _current_loot:
+                    del _free_time[_agent_id]
+            _is_free = not self.player_combat and Routines.Checks.Player.CanAct()
+            _STUCK_LOOT_GRACE_S = 20.0
+            for _agent_id in _current_loot:
+                if _agent_id not in _free_time:
+                    _free_time[_agent_id] = 0.0
+                if _is_free:
+                    _free_time[_agent_id] += _loot_watchdog_dt
+                if _free_time[_agent_id] >= _STUCK_LOOT_GRACE_S:
+                    LootFilters().report_failed(_agent_id)
+                    PySystem.Console.Log(
+                        "LootWatchdog",
+                        f"Loot agent {_agent_id} unresolved for "
+                        f"{_STUCK_LOOT_GRACE_S:.0f}s of free time, blacklisting to unblock movement.",
+                        PySystem.Console.MessageType.Warning,
+                    )
+                    del _free_time[_agent_id]
+
+            if self.debug:
+                PySystem.Console.Log(
+                    "LootWatchdogTick",
+                    f"current_loot={sorted(_current_loot)} "
+                    f"free_time={ {k: round(v, 1) for k, v in _free_time.items()} } "
+                    f"is_free={_is_free} player_combat={self.player_combat}",
+                    PySystem.Console.MessageType.Warning,
+                )
+
         # ── Miku tracking ─────────────────────────────────────────────────────
         miku_id   = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
+        if miku_id != 0:
+            self.miku_ever_seen = True
+            self.miku_reset_gave_up = False
         miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
-        miku_reset = miku_id == 0 and Map.GetMapID() == 849
+        # Only a real "fell through the world" case if she was actually seen
+        # before -- miku_id == 0 is also just what mission start looks like,
+        # before she's ever spawned, and firing the reset there paused combat
+        # against the very first enemies of the run.
+        miku_reset = miku_id == 0 and Map.GetMapID() == 849 and self.miku_ever_seen
+
+        # DIAG (2026-08-31): _MIKU_MODEL_ID was corrected from a never-
+        # verified 8456+57=8513 to 1, based on a live ally-array dump (the
+        # sole ally present for an entire mission run, stable throughout).
+        # Confidence in that id is moderate, not proven -- kept as a live
+        # tripwire rather than a one-shot probe: as long as detection keeps
+        # working this stays silent (only fires while miku_id == 0), so
+        # continued/renewed firing on a live run is the signal that 1 was
+        # wrong too (or collided with some other agent) and needs revisiting.
+        if self.debug and miku_id == 0 and now - getattr(self, "_miku_party_dump_at", 0.0) >= 5.0:
+            self._miku_party_dump_at = now
+            _allies = [
+                (aid, Agent.GetModelID(aid))
+                for aid in AgentArray.GetAllyArray()
+                if Agent.IsValid(aid) and not Agent.IsDead(aid)
+            ]
+            PySystem.Console.Log(
+                "MikuDiag",
+                f"Miku (model {_MIKU_MODEL_ID}) not found -- live allies (agent_id, model_id)={_allies}",
+                PySystem.Console.MessageType.Warning,
+            )
 
         if miku_id != 0 and not miku_dead:
             mk_x, mk_y = Agent.GetXY(miku_id)
@@ -275,19 +418,67 @@ class KeiranThackerayEOTN(BuildMgr):
             yield from Routines.Yield.wait(500)
             return
         elif miku_dead and not self.player_combat:
-            self._set_pause("miku_dead")
+            # BUGFIX (2026-08-31): this used to pause unconditionally with no
+            # timeout -- if Miku never gets revived (no hero/monk res lands,
+            # or she's just done for this encounter), the FSM stayed paused
+            # forever once combat ended, with zero recovery path other than
+            # her death flag clearing. Confirmed live: an account sat frozen
+            # for 20+ minutes standing right next to her corpse, fsm_paused
+            # permanently True, position never moving again. Same "wait
+            # forever for a condition that might never become true" shape as
+            # the OnDeath and loot-watchdog freezes fixed earlier -- give it
+            # a bounded grace period (20s, matching the loot watchdog's)
+            # before giving up and resuming without her. miku_dead_gave_up
+            # latches so we don't immediately re-pause on the very next tick
+            # (miku_dead will still read True) -- it only resets once Miku is
+            # next seen alive, so a later death still gets its own full 20s.
+            if self.miku_dead_gave_up:
+                pass
+            elif self.miku_dead_pause_at == 0.0:
+                self.miku_dead_pause_at = now
+                self._set_pause("miku_dead")
+            elif now - self.miku_dead_pause_at >= 20.0:
+                if self.debug:
+                    PySystem.Console.Log(
+                        "Avoidance",
+                        "Miku Dead Trigger -- 20s out of combat with no revive, resuming without her",
+                        PySystem.Console.MessageType.Warning,
+                    )
+                self.miku_dead_gave_up = True
+                self._clear_pause("miku_dead")
+            else:
+                self._set_pause("miku_dead")
         else:
+            self.miku_dead_pause_at = 0.0
+            self.miku_dead_gave_up  = False
             self._clear_pause("miku_dead")
 
         # If Miku fell through the world, activate reset and issue the backtrack once after 5 s.
-        if miku_reset:
-            PySystem.Console.Log("Miku Model ID", f"{_MIKU_MODEL_ID}", PySystem.Console.MessageType.Warning)
-            PySystem.Console.Log("Miku ID", f"{miku_id}", PySystem.Console.MessageType.Warning)
+        # BUGFIX (2026-08-31): gated on `not self.miku_reset_gave_up` -- without
+        # it, the degenerate-case skip below (nearest_idx == 0) cleared the
+        # pause for exactly one tick and then immediately re-armed, since
+        # miku_reset itself stays True the whole time Miku is genuinely never
+        # found again this run. Confirmed live: "Miku Reset - retracing path" /
+        # "already at path start, nothing to retrace" repeating every ~5s for
+        # 5+ minutes straight, fsm_paused=True for all but a single frame of
+        # each cycle -- functionally still a full freeze from the player's
+        # perspective, just dressed up as a retry loop instead of a hang.
+        if miku_reset and not self.miku_reset_gave_up:
             self.miku_reset_active = True
             if self.miku_reset_at == 0.0:
                 self.miku_reset_at = now                        # start the 5-second window
             elif now - self.miku_reset_at >= 5.0 and not self.miku_retrace_issued:
+                # BUGFIX (2026-08-30): these two logs used to be unconditional
+                # and outside any throttle -- with miku_reset staying True for
+                # the entire 5s wait (and beyond, if the retrace itself never
+                # finishes), they fired every single tick, flooding the
+                # console with hundreds of duplicate lines per second and
+                # burying every other diagnostic. Moved inside this
+                # once-per-trigger branch and gated on self.debug like every
+                # other log in this file.
                 if self.debug:
+                    PySystem.Console.Log("Miku Model ID", f"{_MIKU_MODEL_ID}", PySystem.Console.MessageType.Warning)
+                    PySystem.Console.Log("Miku ID", f"{miku_id}", PySystem.Console.MessageType.Warning)
                     PySystem.Console.Log("Avoidance", "Miku Reset - retracing path", PySystem.Console.MessageType.Warning)
                 # Find the path index closest to current location
                 nearest_idx = min(range(len(_MIKU_PATH)), key=lambda i: _dist(player_x, player_y, *_MIKU_PATH[i]))
@@ -296,13 +487,50 @@ class KeiranThackerayEOTN(BuildMgr):
                 _retrace_coords = list(reversed(_MIKU_PATH[: start_idx + 1]))   # backward: start_idx → 0
                 _return_coords  = list(_MIKU_PATH[: nearest_idx + 1])            # forward:  0 → nearest_idx
 
-                self._retrace_ph    = Routines.Movement.PathHandler(_retrace_coords)
-                self._return_ph     = Routines.Movement.PathHandler(_return_coords)
-                self._miku_follow   = Routines.Movement.FollowXY(tolerance=150)
-                self._retrace_phase = 'retrace'
-
                 self.miku_retrace_issued = True
-                self._set_pause("miku_reset")
+                if nearest_idx == 0:
+                    # BUGFIX (2026-08-30): when the player is already at/near
+                    # _MIKU_PATH[0] (e.g. Miku got lost right at mission
+                    # start), start_idx also collapses to 0, so both
+                    # _retrace_coords and _return_coords reduce to a SINGLE
+                    # point equal to the player's own current position.
+                    # Confirmed live: driving FollowXY/PathHandler at a
+                    # near-zero-distance target never resolved -- the account
+                    # sat frozen at exactly _MIKU_PATH[0] for 5+ minutes,
+                    # fsm permanently paused on "miku_reset". Nothing to
+                    # retrace in this case -- skip the walk machinery
+                    # entirely and resume immediately.
+                    if self.debug:
+                        PySystem.Console.Log(
+                            "Avoidance",
+                            "Miku Reset - already at path start, nothing to retrace",
+                            PySystem.Console.MessageType.Warning,
+                        )
+                    # BUGFIX (2026-08-31): latch miku_reset_gave_up so the
+                    # outer `if miku_reset:` above stops re-entering this
+                    # branch every 5s for as long as Miku stays unfound --
+                    # otherwise this "instant skip" just becomes an instant
+                    # re-arm, pausing again on the very next tick since
+                    # miku_reset itself never goes False on its own. Only
+                    # clears once she's actually seen alive again.
+                    self.miku_reset_active   = False
+                    self.miku_reset_at       = 0.0
+                    self.miku_retrace_issued = False
+                    self.miku_reset_gave_up  = True
+                    self._clear_pause("miku_reset")
+                else:
+                    self._retrace_ph    = Routines.Movement.PathHandler(_retrace_coords)
+                    self._return_ph     = Routines.Movement.PathHandler(_return_coords)
+                    self._miku_follow   = Routines.Movement.FollowXY(tolerance=150)
+                    self._retrace_phase = 'retrace'
+                    self._set_pause("miku_reset")
+        elif self.miku_reset_active and not self._retrace_phase:
+            # Miku reappeared before the 5 s window expired and the retrace
+            # never started -- nothing will clear the pause below, so clear
+            # it here or the FSM stays stuck waiting on a reset that's moot.
+            self.miku_reset_active = False
+            self.miku_reset_at     = 0.0
+            self._clear_pause("miku_reset")
         # ── Drive the active retrace/return leg one frame at a time ──────────
         if self._retrace_phase:
             _ph = self._retrace_ph if self._retrace_phase == 'retrace' else self._return_ph
@@ -314,9 +542,20 @@ class KeiranThackerayEOTN(BuildMgr):
                     self._retrace_phase = 'return'
                 else:
                     # Round-trip complete -- clear all state and resume FSM
+                    # BUGFIX (2026-08-31): also latch miku_reset_gave_up here,
+                    # not just in the degenerate skip case above. Without it,
+                    # a real (non-degenerate) retrace that completes while
+                    # Miku is still genuinely never found just re-triggers
+                    # the whole walk again on the next tick (miku_reset never
+                    # goes False on its own) -- confirmed live: the account
+                    # walked a full retrace+return leg (half the mission's
+                    # _MIKU_PATH, several thousand units each way) on repeat,
+                    # fsm_paused=True for the entire multi-minute loop, no
+                    # actual farming progress, over and over indefinitely.
                     self.miku_reset_active   = False
                     self.miku_reset_at       = 0.0
                     self.miku_retrace_issued = False
+                    self.miku_reset_gave_up  = True
                     self._retrace_ph         = None
                     self._return_ph          = None
                     self._miku_follow        = None
@@ -344,9 +583,38 @@ class KeiranThackerayEOTN(BuildMgr):
                     sp_x, sp_y = ex, ey
                     break
 
+        # BUGFIX (2026-09-03): this held _set_pause("spirit") with no timeout
+        # at all -- the flee trigger a few lines below only fires while
+        # len(enemies_far) > 4, so a spirit within flee range but with <=4
+        # other enemies around (or once the fight itself ends) left the FSM
+        # paused with nothing left to ever move the player out of range.
+        # Confirmed live: fsm_paused=True for ~38s after a single "Spirit
+        # Trigger" log with no further avoidance activity, only clearing
+        # because the spirit happened to wander off/expire on its own --
+        # not guaranteed, same unbounded-wait shape as the miku_dead freeze.
+        # Same fix: bounded 20s grace, then give up and resume combat.
+        # spirit_avoid_gave_up latches so clearing the pause doesn't just
+        # re-arm it next tick while the same spirit is still in range.
         if spirit_id != 0:
-            self._set_pause("spirit")
+            if self.spirit_avoid_gave_up:
+                pass
+            elif self.spirit_pause_at == 0.0:
+                self.spirit_pause_at = now
+                self._set_pause("spirit")
+            elif now - self.spirit_pause_at >= 20.0:
+                if self.debug:
+                    PySystem.Console.Log(
+                        "Avoidance",
+                        "Spirit avoidance -- 20s paused with no escape, resuming combat",
+                        PySystem.Console.MessageType.Warning,
+                    )
+                self.spirit_avoid_gave_up = True
+                self._clear_pause("spirit")
+            else:
+                self._set_pause("spirit")
         else:
+            self.spirit_pause_at      = 0.0
+            self.spirit_avoid_gave_up = False
             self._clear_pause("spirit")
 
 
