@@ -590,7 +590,12 @@ def _draw_hero_settings_tab() -> None:
         PyImGui.pop_style_color(1)
 
     PyImGui.separator()
-    if PyImGui.begin_child("HeroSlotsChild", (0, -1), True):
+    # Fixed height, not -1 ("fill remaining space in the current window"): the outer
+    # bot window is WindowFlags.AlwaysAutoResize, so a child sized relative to the
+    # window it's helping to size creates a feedback loop -- each frame's measured
+    # content height feeds the next frame's window height, compounding into a
+    # continuous shrink. A fixed height breaks the loop.
+    if PyImGui.begin_child("HeroSlotsChild", (0, 380), True):
         for i in range(_HERO_SLOTS_COUNT):
             _draw_hero_slot_editor(i)
             if i < _HERO_SLOTS_COUNT - 1:
