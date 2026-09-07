@@ -101,6 +101,8 @@ class JununduWurm(BuildMgr):
         )
         if match_only:
             return
+        self.SetCombatFn(self._process_combat)
+        self.SetOOCFn(self._process_ooc)
         PySystem.Console.Log(_LOG, "JununduWurm build matched and active.", PySystem.Console.MessageType.Success)
 
     def ScoreMatch(self, current_primary=None, current_secondary=None, current_skills=None) -> int:
@@ -112,7 +114,7 @@ class JununduWurm(BuildMgr):
             return -1
         return super().ScoreMatch(current_primary, current_secondary, current_skills)
 
-    def ProcessSkillCasting(self):
+    def _process_combat(self):
         player_id = Player.GetAgentID()
 
         # Locate nearest enemy in earshot
@@ -167,7 +169,7 @@ class JununduWurm(BuildMgr):
         # Strike — basic attack fill when everything else is recharging
         yield from self.CastSkillSlot(1, aftercast_delay=300)  # Strike
 
-    def ProcessOOC(self):
+    def _process_ooc(self):
         """OOC: cast Wail on a nearby dead teammate; otherwise no-op.
 
         Tunnel-while-traveling was tried here so multibox alts got the same speed
@@ -177,8 +179,8 @@ class JununduWurm(BuildMgr):
         between them enough to break other multi-account timing (e.g. dialog/gadget
         dispatch waits). Tunnel is no longer used for map traversal at all.
 
-        Wail itself must be handled here too, not just in ProcessSkillCasting: that
-        method is only ever reached through ProcessCombat(), which only runs while
+        Wail itself must be handled here too, not just in combat: the combat handler
+        is only ever reached through ProcessCombat(), which only runs while
         hero_ai_combat_detected()/in_aggro is true. Walking back to revive a corpse
         with no enemies left nearby is, correctly, "out of combat" — so without this,
         Wail was structurally unreachable for exactly the case it exists to handle.

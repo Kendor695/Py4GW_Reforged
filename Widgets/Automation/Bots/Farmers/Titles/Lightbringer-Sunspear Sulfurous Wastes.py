@@ -24,13 +24,12 @@ from typing import List, Dict, Optional, Callable
 MODULE_NAME = "Lightbringer-Sunspear Sulfurous Wastes"
 MODULE_ICON = "Assets/Textures/Skill_Icons/[1813] - Lightbringer.jpg"
 
-_RANGE_AGGRO = Range.Earshot.value  # 1012 — OOC detection range for junundu fight nodes
-_BLESSING_PRE_DIALOG_WAIT_MS = 8_000  # let every account arrive/settle before a multi-account dialog dispatch
+_RANGE_AGGRO = Range.Earshot.value 
+_BLESSING_PRE_DIALOG_WAIT_MS = 8_000 
 
 
 class BotSettings:
     BOT_NAME             = "Lightbringer-Sunspear Sulfurous Wastes"
-    # TODO: verify these map IDs in-game (from PyQuishAI TheSulfurousWastes_ids)
     OUTPOST_TO_TRAVEL    = 545    # Remains of Sahlahja
     EXPLORABLE_TO_TRAVEL = 444    # The Sulfurous Wastes
     COORD_TO_EXIT_MAP    = (2200.0, -4900.0)   # Walk from outpost gate into explorable
@@ -1587,7 +1586,7 @@ def _draw_help():
     PyImGui.spacing()
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Original AutoIt3 script by caustic-kronos (Kronos/Night/Svarog)")
-    PyImGui.bullet_text("Py4GW port by george-ctrl")
+    PyImGui.bullet_text("Py4GW port by george-ctrl, Northbound")
 
 
 def tooltip():
