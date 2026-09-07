@@ -145,6 +145,41 @@ def draw(overlay: "MapOverlay") -> None:
                 _tip(f"{ring.name}: outline thickness")
                 PyImGui.pop_item_width()
             PyImGui.unindent(10)
+            
+        # ── Portals & teleports ───────────────────────────────────────────────────────────
+        if PyImGui.collapsing_header("Portals & teleports (mission map)"):
+            PyImGui.indent(10)
+            pt = cfg.portals_and_teleports
+
+            # Portals section
+            PyImGui.text_disabled("Portals")
+            pt.show_portals = PyImGui.checkbox("Show portals", pt.show_portals)
+            _tip("Show portal indicators on the map.")
+
+            pt.color_portals = _rgba(PyImGui.color_edit4("Portal color", _norm(pt.color_portals)))
+            _tip("Color of portal indicators.")
+
+            PyImGui.push_item_width(60)
+            pt.radius_portals = PyImGui.input_float("Portal radius", pt.radius_portals)
+            PyImGui.pop_item_width()
+            _tip("Display size/radius of portal indicators.")
+
+            PyImGui.separator()
+
+            # Teleports section
+            PyImGui.text_disabled("Teleports")
+            pt.show_teleports = PyImGui.checkbox("Show teleports", pt.show_teleports)
+            _tip("Show teleport indicators on the map.")
+
+            pt.color_teleports = _rgba(PyImGui.color_edit4("Teleport color", _norm(pt.color_teleports)))
+            _tip("Color of teleport indicators.")
+
+            PyImGui.push_item_width(60)
+            pt.radius_teleports = PyImGui.input_float("Teleport radius", pt.radius_teleports)
+            PyImGui.pop_item_width()
+            _tip("Display size/radius of teleport indicators.")
+
+            PyImGui.unindent(10)
 
         # ── Movement / snap ──────────────────────────────────────────────────────────────
         if PyImGui.collapsing_header("Movement (snap)"):

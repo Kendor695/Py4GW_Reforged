@@ -76,6 +76,14 @@ def load(cfg: OverlayConfig) -> None:
     pr.show_compass_range = s.get_bool("player_ranges", "show_compass_range", pr.show_compass_range)
     pr.color = _to_rgba(s.get_int("player_ranges", "color", _to_int(pr.color)))
     pr.compass_outline = _to_rgba(s.get_int("player_ranges", "compass_outline", _to_int(pr.compass_outline)))
+    
+    pt = cfg.portals_and_teleports
+    pt.show_portals = s.get_bool("portals_and_teleports", "show_portals", pt.show_portals)
+    pt.show_teleports = s.get_bool("portals_and_teleports", "show_teleports", pt.show_teleports)
+    pt.color_portals = _to_rgba(s.get_int("portals_and_teleports", "color_portals", _to_int(pt.color_portals)))
+    pt.color_teleports = _to_rgba(s.get_int("portals_and_teleports", "color_teleports", _to_int(pt.color_teleports)))
+    pt.radius_portals = s.get_float("portals_and_teleports", "radius_portals", pt.radius_portals)
+    pt.radius_teleports = s.get_float("portals_and_teleports", "radius_teleports", pt.radius_teleports)
 
     p = cfg.position
     p.snap_to_game = s.get_bool("position", "snap_to_game", p.snap_to_game)
