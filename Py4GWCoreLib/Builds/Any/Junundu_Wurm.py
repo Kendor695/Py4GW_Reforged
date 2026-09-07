@@ -103,6 +103,17 @@ class JununduWurm(BuildMgr):
             return
         self.SetCombatFn(self._process_combat)
         self.SetOOCFn(self._process_ooc)
+        self._logged_active = False
+
+    def _log_active_once(self) -> None:
+        # BuildRegistry constructs every discovered build (non-match-only) just to
+        # populate its candidate list for scoring -- that construction alone used to
+        # log "matched and active" here in __init__, regardless of whether ScoreMatch
+        # ever actually picked this build. Log only once real ticking starts, which is
+        # the only place that reliably means this build is driving the character.
+        if self._logged_active:
+            return
+        self._logged_active = True
         PySystem.Console.Log(_LOG, "JununduWurm build matched and active.", PySystem.Console.MessageType.Success)
 
     def ScoreMatch(self, current_primary=None, current_secondary=None, current_skills=None) -> int:
@@ -115,6 +126,7 @@ class JununduWurm(BuildMgr):
         return super().ScoreMatch(current_primary, current_secondary, current_skills)
 
     def _process_combat(self):
+        self._log_active_once()
         player_id = Player.GetAgentID()
 
         # Locate nearest enemy in earshot
@@ -185,6 +197,7 @@ class JununduWurm(BuildMgr):
         with no enemies left nearby is, correctly, "out of combat" — so without this,
         Wail was structurally unreachable for exactly the case it exists to handle.
         """
+        self._log_active_once()
         player_id = Player.GetAgentID()
         if _has_dead_party_member_nearby(player_id):
             yield from self.CastSkillSlot(7, aftercast_delay=500)  # Wail
