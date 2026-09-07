@@ -12,7 +12,7 @@ from Py4GWCoreLib import *
 from Py4GWCoreLib.py4gwcorelib_src.Settings import Settings
 
 MODULE_NAME = "Hearts of the North - Keiran Missons (War Supplies)"
-MODULE_ICON = "Assets\\Textures\\Module_Icons\\Keiran Farm.png"
+MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
 MODULE_TAGS = ["War","Supply", "Keiran", "AB", "Rise", "EOTN", "HotN"]
 
 _HOTN_DIALOG_BASE_OFFSET = 0xE  # first HotN mission (AB) is always base_id + 0xE; each subsequent mission adds 1
@@ -72,6 +72,50 @@ class BotSettings:
     # Gold threshold for deposit
     GOLD_THRESHOLD_DEPOSIT: int = 90000
 
+    # If free inventory slots drop below this, detour to EOTN so AutoInventoryHandler
+    # (Inventory Plus) can identify/salvage/deposit before the bags actually fill up.
+    MANAGE_INVENTORY_ON_LOW_SLOTS: bool = True
+    LOW_SLOTS_THRESHOLD: int = 10
+
+    # Identify+triage pass run whenever the bot is in EOTN: sells everything
+    # except declared keepers (Superior Vigor runes, black/white dyes, double
+    # vamp weapons, maxed non-inscribable gold weapons/shields). Starts in
+    # dry-run (log only, nothing actually sold) until verified correct.
+    INVENTORY_TRIAGE_DRY_RUN: bool = True
+
+    # Whether triage keeps materials (deposited to storage) or sells them off
+    # like everything else. Wood Planks are always sold regardless of this.
+    KEEP_MATERIALS: bool = True
+
+    # Whether triage keeps black/white dyes (deposited to storage) instead of
+    # selling them like every other dye colour.
+    KEEP_DYES: bool = True
+
+    # Whether triage extracts+keeps Superior Vigor runes (+50 HP) instead of
+    # selling them as-is.
+    KEEP_VIGOR_RUNES: bool = True
+
+    # Whether triage keeps "double vamp" weapons (inherent Vampiric mod +
+    # Vampiric prefix/inscription stacked) instead of selling them.
+    KEEP_DOUBLE_VAMP: bool = True
+
+    # Whether triage keeps maxed non-inscribable gold weapons/shields instead
+    # of selling them.
+    KEEP_MAXED_GOLD: bool = True
+
+    # Master override: when on, every optional keep-rule above (materials,
+    # dyes, vigor runes, double vamp, maxed non-inscribable gold) is ignored
+    # and triage sells everything sellable. Kits/consumables/lockpicks are
+    # never touched by this -- they're excluded from triage entirely for
+    # functional reasons, not value ones.
+    SELL_EVERYTHING: bool = False
+
+    # Whether to spend excess gold (character >=90k with >=800k already in
+    # storage) buying Globs of Ectoplasm from the rune trader. Purely
+    # discretionary -- turning it off just leaves the excess gold on the
+    # character to keep depositing normally.
+    BUY_ECTOS_ENABLED: bool = True
+
     # Properties to enable/disable via setting tab
     WAR_SUPPLIES_ENABLED: bool = False
 
@@ -115,6 +159,25 @@ _save_requested:              bool            = False
 # Per-mission movement routines
 # ---------------------------------------------------------------------------
 
+# BUGFIX (2026-09-03): bot.Wait.UntilOnCombat() (Py4GWCoreLib/botting_src/
+# subclases_src/WAIT_src.py) resolves to _coro_until_condition(), a bare
+# `while True:` loop with no timeout at all -- it blocks the entire FSM
+# forever if InDanger() never becomes True. Confirmed live: an account sat
+# frozen at fsm_state=WasteTimeUntilOnCombat_4, position never leaving the
+# mission's own spawn point, for 12+ minutes straight.
+#
+# REVERTED (2026-09-04): the 45s-timeout replacement (bounded custom state,
+# commit d822bed0) caused a far worse regression -- 100% run failure across
+# all 5 accounts for 2.5+ hours straight, every single run dying ~60-160s
+# after map load instead of freezing. Read: InDanger() gates an ambush at
+# (11714,-4590) the mission needs the party to actually fight in place;
+# forcing movement onward after 45s regardless of combat state pulled the
+# party out of position mid-fight (or before the ambush even triggered)
+# straight into a wipe. Back to the unbounded wait -- it hangs rarely (one
+# confirmed 12-minute freeze) but that beats a guaranteed death every run.
+# If the freeze recurs, fix it with a smarter/longer grace (e.g. only give
+# up once the player is ALSO stationary/not casting, not just "no combat
+# yet"), not a short deadline that yanks movement mid-fight.
 def _run_ab_movement(bot: Botting) -> None:
     bot.Wait.ForMapLoad(849)
     bot.Move.XY(11714,-4590)
@@ -290,6 +353,39 @@ def create_bot_routine(bot: Botting) -> None:
     if not widget_handler.is_widget_enabled("Return to outpost on defeat"):
         widget_handler.enable_widget("Return to outpost on defeat")
 
+    # "Messaging" must stay ON: the framework's own upkeep_auto_loot()
+    # coroutine (auto_loot is active by default, botting_src/property.py)
+    # sends itself a PickUpLoot command over the ShMem message bus after
+    # every fight, but Messaging.py's ProcessMessages() is the ONLY consumer
+    # of that message (see PickUpLoot() in Widgets/System/Messaging.py). With
+    # Messaging disabled, that message is never processed, the loot never
+    # gets picked up, and bot.Move.XY's FollowPath then pauses forever on its
+    # own loot_pause() check (MOVE_src.py) because there's still lootable
+    # trophies within earshot -- the bot freezes right next to unlooted loot
+    # after every group. This was disabled at one point to silence a known
+    # Hero AI snapshot-stack spam bug in Messaging.py (py4gw-botting-gotchas
+    # skill, entry #41; narrow try/finally leak fix already applied there,
+    # but did not fully resolve the spam live) -- re-enabled here because
+    # losing loot pickup on a trophy farmer is worse. If the snapshot spam
+    # reappears, that gotcha entry is the place to pick the investigation
+    # back up.
+    if not widget_handler.is_widget_enabled("Messaging"):
+        widget_handler.enable_widget("Messaging")
+
+    # This bot installs its own full custom combat build (KeiranThackerayEOTN)
+    # and drives its hero party members via the native hero_ai property/struct
+    # fields directly (see bot.Templates.AggressiveForceHeroAI calls below).
+    # The standalone "HeroAI" widget (Widgets/Automation/Multiboxing/HeroAI.py)
+    # runs its OWN independent HeroAI_Build with its own combat/loot
+    # BehaviorTree -- having both active fights over the same account at once
+    # (confirmed: HeroAI's LootingNode bails out whenever its own separate
+    # in_aggro tracking is stuck true, which this dual-build conflict can
+    # cause). This toggle only fires when THIS bot's script launches, so it
+    # never touches the widget's state on other accounts that use it on
+    # purpose.
+    if widget_handler.is_widget_enabled("HeroAI"):
+        widget_handler.disable_widget("HeroAI")
+
     InitializeBot(bot)
     def _initial_vanguard_scan():
         _update_vanguard_cache()
@@ -319,11 +415,69 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
     bot.Properties.ApplyNow("hero_ai", "active", False)
-    yield from Routines.Yield.wait(8000)
-    yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.HOM_OUTPOST_ID, timeout=30000)
+    yield from Routines.Yield.wait(3000)
+
+    # Auspicious Beginnings is an explorable-area quest, not an instanced mission:
+    # a full party wipe does NOT auto-teleport back to the outpost. The "You have
+    # been defeated" screen needs an explicit GLOBAL_CACHE.Party.ReturnToOutpost()
+    # call (normally issued by the "Return to outpost on defeat" widget). That
+    # widget isn't guaranteed to be present/enabled, so retry the call directly
+    # here instead of depending on it and passively waiting for a map load that
+    # may never happen on its own.
+    #
+    # Retries indefinitely rather than giving up after a fixed window: for
+    # unattended multi-account farming, a bot that stops itself on a slow
+    # recovery just silently sits idle until someone notices -- across 5+
+    # accounts that could be hours. Keep trying and log periodically instead.
+    last_attempt = 0.0
+    last_log = time.time()
+    # GLOBAL_CACHE.Party.ReturnToOutpost() only has any effect after a genuine
+    # full party wipe (GLOBAL_CACHE.Party.IsPartyDefeated()) -- the reference
+    # "Return to outpost on defeat" widget gates the exact same call on that
+    # flag. A solo player death with heroes/henchmen still fighting doesn't
+    # wipe the party: the player can get revived (hero rez, res signet, etc.)
+    # right back onto the SAME explorable map, and this loop's original only
+    # exit condition (arriving at HOM) then never becomes true -- the retried
+    # ReturnToOutpost() call just keeps being a no-op forever, freezing the
+    # bot indefinitely. Detect that case directly: nobody in the party is
+    # dead anymore, but we're still not in HOM. A short grace window guards
+    # against the single-frame gap right as a genuine wipe's death flags
+    # clear during the transition.
+    _alive_since: float | None = None
+    _REVIVED_WITHOUT_WIPE_GRACE_S = 3.0
+    while True:
+        # Hall of Monuments is an explorable zone, not a town/outpost (no merchant,
+        # no Xunlai storage -- that's Eye of the North). Don't gate this on
+        # Routines.Checks.Map.IsOutpost(): if the game engine doesn't classify HOM
+        # as InstanceType.Outpost, that check never passes even after genuinely
+        # arriving.
+        if Map.GetMapID() == BotSettings.HOM_OUTPOST_ID and Routines.Checks.Map.MapValid():
+            break
+        now = time.time()
+        if not Routines.Checks.Party.IsPartyMemberDead():
+            if _alive_since is None:
+                _alive_since = now
+            elif now - _alive_since >= _REVIVED_WITHOUT_WIPE_GRACE_S:
+                ConsoleLog(
+                    MODULE_NAME,
+                    "[OnDeath] Revived without a party wipe -- resuming in place instead of waiting for HOM.",
+                    PySystem.Console.MessageType.Warning,
+                )
+                break
+        else:
+            _alive_since = None
+        if now - last_attempt >= 2.0:
+            GLOBAL_CACHE.Party.ReturnToOutpost()
+            last_attempt = now
+        if now - last_log >= 60.0:
+            ConsoleLog(MODULE_NAME, "[OnDeath] Still trying to return to HOM...", PySystem.Console.MessageType.Warning)
+            last_log = now
+        yield from Routines.Yield.wait(500)
+
     bot.Properties.ApplyNow("halt_on_death", "active", False)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Prepare for Quest_5")
+    if Map.GetMapID() == BotSettings.HOM_OUTPOST_ID:
+        fsm.jump_to_state_by_name("[H]Prepare for Quest_5")
     fsm.resume()
     yield
 
@@ -334,6 +488,25 @@ def on_death(bot: "Botting"):
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
+
+
+def _handle_unmanaged_fail(bot: "Botting") -> bool:
+    """Recover from an unmanaged failure (e.g. a stuck dialog or a map load
+    that never completes) the same way a death recovers, instead of accepting
+    the framework's default behavior of stopping the bot outright.
+
+    For unattended multi-account farming, a bot that stops itself just sits
+    idle until someone happens to notice -- across 5+ accounts that could be
+    hours. _on_death()'s recovery (return to HOM, resume the quest loop) is
+    exactly the right fix here too: the trigger differs, but "something went
+    wrong, get back to a known-good state and keep going" is the same job.
+    """
+    ConsoleLog(MODULE_NAME, "[UnmanagedFail] Recovering instead of stopping.", PySystem.Console.MessageType.Warning)
+    ActionQueueManager().ResetAllQueues()
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("UnmanagedFailRecovery", _on_death(bot))
+    return False  # tell the framework NOT to stop the bot -- recovery above handles it
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +527,14 @@ def _disable_combat(bot: Botting) -> None:
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
+    # Gold/green sales (e.g. maxed non-inscribable golds triage decides not to
+    # keep) would otherwise pop a confirmation dialog that nothing here clicks
+    # through, silently stalling the sale. This memory-patch listener removes
+    # that prompt at the source instead of trying to detect/accept a window.
+    Listeners.DisableGoldConfirmation.Enable()
+    # See _handle_unmanaged_fail(): recover instead of letting the framework
+    # stop the bot on any unmanaged failure (stuck dialog, map load timeout, etc).
+    bot.helpers.Events.set_on_unmanaged_fail(lambda: _handle_unmanaged_fail(bot))
 
 
 def _load_navmesh_object(bot) -> None:
@@ -389,7 +570,7 @@ def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
 
     def _bow_gate():
-        if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11723):
+        if BotSettings.CUSTOM_BOW_ID != 0 or _is_model_owned(11723):
             bot.config.FSM.jump_to_state_by_name("BowCraftEnd")
         yield
 
@@ -432,6 +613,523 @@ def DoCraftLongbow(bot: Botting):
     return True
 
 
+def _count_free_bag_slots() -> int:
+    """Count free slots across the 4 standard bags directly.
+
+    GLOBAL_CACHE.Inventory.GetFreeSlotCount() (via GetInventorySpace()) sums
+    bag.GetItemCount() per bag -- observed in testing to always report 0
+    items regardless of actual contents, so it always returns full bag
+    capacity (e.g. 60) no matter how full the bags really are. Count items
+    directly with ItemArray instead, which reads real bag contents correctly
+    (already relied on elsewhere in this file for the Equipment Pack checks).
+    """
+    total_capacity = sum(GLOBAL_CACHE.Inventory.GetBagSize(bag_id) for bag_id in (1, 2, 3, 4))
+    total_items = len(ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4)))
+    return max(total_capacity - total_items, 0)
+
+
+def _is_sellable_junk(item_id: int) -> bool:
+    """White-rarity items eligible to sell off to free a slot.
+
+    Excludes ID kits, salvage kits (base/lesser/expert/perfect), consumables
+    (usables), lockpicks, and materials (rare or not, except Wood Planks --
+    see _triage_keep_reason) -- selling any of those away would either break
+    AutoInventoryHandler's own tooling (it needs a spare kit to
+    salvage/identify with) or throw away things worth keeping.
+    """
+    if not Item.Rarity.IsWhite(item_id):
+        return False
+    if Item.Usage.IsIDKit(item_id):
+        return False
+    if (Item.Usage.IsSalvageKit(item_id) or Item.Usage.IsLesserKit(item_id)
+            or Item.Usage.IsExpertSalvageKit(item_id) or Item.Usage.IsPerfectSalvageKit(item_id)):
+        return False
+    if Item.Usage.IsUsable(item_id):
+        return False
+    if Item.GetModelID(item_id) == ModelID.Lockpick.value:
+        return False
+    if (BotSettings.KEEP_MATERIALS and Item.GetModelID(item_id) != ModelID.Wood_Plank.value
+            and (Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id))):
+        return False
+    if Item.GetItemType(item_id)[1] == "Dye":
+        return False
+    return True
+
+
+def _is_superior_vigor_rune(item_id: int) -> bool:
+    """Keep: Rune of Superior Vigor (+50 HP)."""
+    return any(name == "RuneOfSuperiorVigor" for name, _slot in Item.Mods.GetUpgrades(item_id))
+
+
+def _is_keeper_dye(item_id: int) -> bool:
+    """Keep: black and white dye vials specifically -- other colours are sold."""
+    if Item.GetItemType(item_id)[1] != "Dye":
+        return False
+    return Item.Dye.GetColor(item_id) in (DyeColor.Black, DyeColor.White)
+
+
+def _is_double_vamp_weapon(item_id: int) -> bool:
+    """Keep: a "double vamp" weapon -- an inherent Vampiric weapon mod
+    (damage +14-15%, health regeneration -1) stacked with a separate
+    Vampiric prefix/inscription (damage +3, life stealing on hit).
+
+    Detected off the game's own human-readable description lines rather than
+    internal mod ids, since that's the one thing guaranteed to match what the
+    client actually shows. Best-effort -- this is exactly why dry-run mode
+    exists; verify against its output before trusting it to sell for real.
+    """
+    if not Item.Type.IsWeapon(item_id):
+        return False
+    lines = " | ".join(Item.Mods.GetDescriptions(item_id)).lower()
+    has_inherent = "health regeneration -1" in lines and ("damage +15%" in lines or "damage +14%" in lines)
+    has_vamp_upgrade = any("vampiric" in name.lower() for name, _slot in Item.Mods.GetUpgrades(item_id))
+    return has_inherent and has_vamp_upgrade
+
+
+def _is_maxed_noninscribable_gold(item_id: int) -> bool:
+    """Keep: a non-inscribable gold weapon or shield with every rolled stat --
+    base and upgrades -- at the top of its range.
+
+    Base weapon damage is checked via IsMaxDamage() (a sword at 15-21 instead
+    of 15-22 is not maxed even if every upgrade on it is) -- shields skip
+    this check since their armor bonus is a fixed value per requirement, not
+    a randomized roll, so there's nothing to max there beyond the upgrades.
+    """
+    if Item.Rarity.GetRarity(item_id)[1] != "Gold":
+        return False
+    is_shield = Item.GetItemType(item_id)[1] == "Shield"
+    is_weapon = Item.Type.IsWeapon(item_id)
+    if not (is_weapon or is_shield):
+        return False
+    if Item.Properties.IsInscribable(item_id):
+        return False
+    if is_weapon and not Item.Properties.IsMaxDamage(item_id):
+        return False
+    upgrades = Item.Mods.GetUpgrades(item_id)
+    if not upgrades:
+        return False
+    return all(Item.Mods.IsMaxed(item_id, name) for name, _slot in upgrades)
+
+
+def _triage_keep_reason(item_id: int) -> str | None:
+    """Why this identified item should be kept, or None if it's sellable junk.
+
+    Tools (ID/salvage kits) and consumables/materials are never triage-sold --
+    kits are needed for AutoInventoryHandler's own identify/salvage work, and
+    materials/consumables are AutoInventoryHandler's to deposit, not this
+    triage's to sell. Everything else not matching a keep-criterion below is
+    sellable, including dyes that aren't black or white.
+    """
+    if (Item.Usage.IsIDKit(item_id) or Item.Usage.IsSalvageKit(item_id) or Item.Usage.IsLesserKit(item_id)
+            or Item.Usage.IsExpertSalvageKit(item_id) or Item.Usage.IsPerfectSalvageKit(item_id)):
+        return "tool (kit)"
+    if Item.Usage.IsUsable(item_id):
+        return "consumable"
+    if Item.GetModelID(item_id) == ModelID.Lockpick.value:
+        return "lockpick"
+    if Item.GetModelID(item_id) == ModelID.Wood_Plank.value:
+        return None
+    # Master override: nothing below this point is a keeper -- liquidate it
+    # all for gold. Kits/consumables/lockpicks are already handled above and
+    # stay untouched regardless (they're excluded for functional reasons, not
+    # value ones).
+    if BotSettings.SELL_EVERYTHING:
+        return None
+    if BotSettings.KEEP_MATERIALS and (Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id)):
+        return "material"
+    if BotSettings.KEEP_DYES and _is_keeper_dye(item_id):
+        return "black/white dye"
+    if BotSettings.KEEP_VIGOR_RUNES and _is_superior_vigor_rune(item_id):
+        return "Superior Vigor rune"
+    if BotSettings.KEEP_DOUBLE_VAMP and _is_double_vamp_weapon(item_id):
+        return "double vamp weapon"
+    if BotSettings.KEEP_MAXED_GOLD and _is_maxed_noninscribable_gold(item_id):
+        return "maxed non-inscribable gold"
+    return None
+
+
+def _find_rune_salvage_kit() -> int:
+    """Best available kit for extracting a rune without a chance to destroy it.
+
+    Routines.Yield.Items.SalvageItems() calls GLOBAL_CACHE.Inventory.GetFirstSalvageKit(),
+    which *prefers lesser (basic) kits* by default -- exactly the kits with a
+    chance to destroy the rune on salvage, the opposite of what's wanted here.
+    Scan directly for a Perfect (100% success) or Expert-tier kit instead;
+    "Superior Salvage Kit" reads as expert-tier through the same native flag.
+    """
+    bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+    expert = 0
+    for item_id in bag_items:
+        if Item.Usage.IsPerfectSalvageKit(item_id):
+            return item_id
+        if Item.Usage.IsExpertSalvageKit(item_id) and not expert:
+            expert = item_id
+    return expert
+
+
+def _salvage_with_kit(item_id: int, kit_id: int):
+    """Salvage item_id with a specific kit_id, accepting the salvage-materials
+    confirmation window if the game shows one (purple/gold items only).
+
+    Bypasses Routines.Yield.Items.SalvageItems()'s automatic (lesser-kit-
+    preferring) kit selection -- see _find_rune_salvage_kit().
+    """
+    from Py4GWCoreLib.Inventory import Inventory
+    Inventory.SalvageItem(item_id, kit_id)
+    yield from Routines.Yield.wait(750)
+    _, rarity = Item.Rarity.GetRarity(item_id)
+    if rarity in ("Purple", "Gold"):
+        found_confirm = yield from Routines.Yield.Items._wait_for_salvage_materials_window()
+        if found_confirm:
+            Inventory.AcceptSalvageMaterialsWindow()
+            yield from Routines.Yield.wait(750)
+
+
+def _resolve_item_name(item_id: int, timeout_ms: int = 1500) -> str:
+    """Item names are resolved async by the client -- GetName() reads back
+    empty until a RequestName() has round-tripped. Request it and wait
+    briefly so dry-run/log output is actually readable instead of "item X ()".
+    """
+    if Item.IsNameReady(item_id):
+        return Item.GetName(item_id)
+    Item.RequestName(item_id)
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        if Item.IsNameReady(item_id):
+            return Item.GetName(item_id)
+        yield from Routines.Yield.wait(100)
+    return Item.GetName(item_id)
+
+
+def _wait_for_merchant_window(bot: Botting, timeout_ms: int = 5000) -> bool:
+    """Poll until Maryann's trade window is actually open, or give up.
+
+    bot.helpers.Merchant._buy_item()/._sell_item() silently do nothing if the
+    merchant frame isn't open yet -- no error, no log, the call just no-ops.
+    A fixed post-interact wait(750) is a guess at how long that takes; if the
+    window happens to still be opening (interact was queued behind movement,
+    game hitching, etc.) the guess comes up short and the "sale" never
+    actually happens even though nothing in the log says so. Poll the real
+    state instead of guessing at a duration.
+    """
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        if bot.helpers.Merchant._merchant_frame_exists():
+            return True
+        yield from Routines.Yield.wait(150)
+    ConsoleLog(MODULE_NAME, "[Merchant] Trade window never opened -- buy/sell call skipped.",
+               PySystem.Console.MessageType.Warning)
+    return False
+
+
+def _wait_for_merchant_offering(model_id: int, timeout_ms: int = 5000) -> bool:
+    """Poll until model_id actually shows up in GetOfferedItems(), or give up.
+
+    The trade window being open (_wait_for_merchant_window) doesn't mean the
+    offered-items list has finished streaming in yet -- GetOfferedItems() is
+    frame-cached and can read back empty/incomplete for a moment right after
+    the window opens. bot.helpers.Merchant._buy_item() does one single
+    GetOfferedItems() call and silently does nothing if the model isn't in it
+    yet, same "single check instead of polling" trap as everywhere else in
+    this framework. If this still times out after polling, the merchant
+    genuinely doesn't stock that item (wrong NPC for it), not a timing issue.
+    """
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        offered_models = {Item.GetModelID(iid) for iid in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems()}
+        if model_id in offered_models:
+            return True
+        yield from Routines.Yield.wait(150)
+    ConsoleLog(MODULE_NAME, f"[Merchant] Model {model_id} never appeared in this merchant's stock -- buy skipped.",
+               PySystem.Console.MessageType.Warning)
+    return False
+
+
+def _confirm_item_gone(item_id: int, timeout_ms: int = 3000) -> bool:
+    """Poll until item_id is no longer in bags 1-4 (sold/deposited/consumed), or timeout."""
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        if item_id not in ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4)):
+            return True
+        yield from Routines.Yield.wait(150)
+    return False
+
+
+def _sell_all(bot: Botting, item_ids: list[int], per_item_timeout_ms: int = 3000):
+    """Sell each item one at a time, confirming it's actually gone before
+    moving to the next.
+
+    Same reasoning as _identify_all(): Routines.Yield.Merchant.SellItems()
+    reports "Sold N items" as soon as its local action queue drains, which
+    isn't proof the server processed all N -- the stack-price bug already
+    showed a "successful" sell that changed nothing, and a full-inventory
+    triage batch is exactly the size at which identify started silently
+    dropping most of its work too. Confirming each item is actually gone
+    catches that instead of trusting the queue-drained log line.
+
+    Each item is wrapped in its own try/except: the FSM's coroutine runner
+    silently drops a custom state (and jumps to whatever's next -- in
+    practice, off toward the mission) the instant any exception escapes it,
+    with nothing printed to explain why. One bad item id mid-batch used to
+    be able to abandon the rest of a 50-item triage without a trace; now a
+    failure on one item just gets logged and the loop moves on.
+    """
+    total = len(item_ids)
+    for i, item_id in enumerate(item_ids, 1):
+        try:
+            quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id) or 1
+            value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+            GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, quantity * value)
+            confirmed = yield from _confirm_item_gone(item_id, per_item_timeout_ms)
+            if BotSettings.DEBUG:
+                if confirmed:
+                    print(f"[DEBUG] Sold item {item_id} ({i}/{total})")
+                else:
+                    print(f"[DEBUG] Item {item_id} did not confirm sold within {per_item_timeout_ms}ms ({i}/{total})")
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"[Sell] Exception on item {item_id} ({i}/{total}): {e}",
+                       PySystem.Console.MessageType.Error)
+
+
+def _deposit_all(item_ids: list[int], per_item_timeout_ms: int = 3000):
+    """Deposit each item one at a time, confirming it's actually gone before
+    moving to the next -- same reasoning as _sell_all()/_identify_all():
+    Routines.Yield.Items.DepositItems() reports "Deposited N items" as soon
+    as its queue drains, which isn't proof storage actually received all N.
+
+    Each item is wrapped in its own try/except -- see _sell_all() for why:
+    one bad item id used to be able to silently abandon the whole triage
+    (and send the bot off toward the mission) without a trace.
+    """
+    total = len(item_ids)
+    for i, item_id in enumerate(item_ids, 1):
+        try:
+            GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+            confirmed = yield from _confirm_item_gone(item_id, per_item_timeout_ms)
+            if BotSettings.DEBUG:
+                if confirmed:
+                    print(f"[DEBUG] Deposited item {item_id} ({i}/{total})")
+                else:
+                    print(f"[DEBUG] Item {item_id} did not confirm deposited within {per_item_timeout_ms}ms ({i}/{total})")
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"[Deposit] Exception on item {item_id} ({i}/{total}): {e}",
+                       PySystem.Console.MessageType.Error)
+
+
+def _identify_all(bot: Botting, item_ids: list[int], per_item_timeout_ms: int = 3000):
+    """Identify each item one at a time, confirming success before moving on.
+
+    Routines.Yield.Items.IdentifyItems() queues the whole batch at once --
+    tried that (plus waiting, plus retrying the batch across multiple passes,
+    re-topping the ID kit each time) and it consistently only got a small
+    fraction of a large unidentified batch to actually flip to identified, no
+    matter how many passes were allowed; the rest never went through even
+    though the queue reported itself drained. Firing them one at a time and
+    confirming each individually is slower but doesn't rely on however many
+    of a big batch the client silently drops.
+
+    Each item is wrapped in its own try/except -- see _sell_all() for why:
+    one bad item id used to be able to silently abandon the whole triage
+    (and send the bot off toward the mission) without a trace.
+    """
+    from Py4GWCoreLib.Inventory import Inventory
+    total = len(item_ids)
+    for i, item_id in enumerate(item_ids, 1):
+        try:
+            if Item.Usage.IsIdentified(item_id):
+                continue
+            id_kit = GLOBAL_CACHE.Inventory.GetFirstIDKit()
+            if id_kit == 0:
+                yield from _ensure_id_kit_stock(bot)
+                id_kit = GLOBAL_CACHE.Inventory.GetFirstIDKit()
+                if id_kit == 0:
+                    if BotSettings.DEBUG:
+                        print(f"[DEBUG] No ID kit available -- can't identify item {item_id} ({i}/{total})")
+                    continue
+            Inventory.IdentifyItem(item_id, id_kit)
+            deadline = time.time() + per_item_timeout_ms / 1000
+            while time.time() < deadline:
+                if Item.Usage.IsIdentified(item_id):
+                    if BotSettings.DEBUG:
+                        print(f"[DEBUG] Identified item {item_id} ({i}/{total})")
+                    break
+                yield from Routines.Yield.wait(150)
+            else:
+                if BotSettings.DEBUG:
+                    print(f"[DEBUG] Item {item_id} did not confirm identified within {per_item_timeout_ms}ms ({i}/{total})")
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"[Identify] Exception on item {item_id} ({i}/{total}): {e}",
+                       PySystem.Console.MessageType.Error)
+
+
+def _triage_and_sell_inventory(bot: Botting):
+    """Identify+triage pass: identify everything identifiable, keep declared
+    keepers, sell everything else.
+
+    Identification is done here directly with _identify_all() rather than left
+    to AutoInventoryHandler's own background pass -- that widget's timing
+    isn't ours to control, and _ensure_id_kit_stock() already guarantees a
+    kit is on hand, so there's no reason to wait on it.
+
+    Three outcomes per item:
+    - Superior Vigor rune: salvage it out with an Expert/Perfect kit (buying
+      one first if needed), then deposit the extracted rune to storage.
+    - Other keepers (black/white dyes, double vamp weapons, maxed
+      non-inscribable golds): deposited to storage as-is.
+    - Everything else: sold to the merchant.
+    """
+    bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+    unidentified = [iid for iid in bag_items if not Item.Usage.IsIdentified(iid)]
+    if unidentified:
+        if BotSettings.DEBUG:
+            print(f"[DEBUG] Identifying {len(unidentified)} item(s) before triage")
+        yield from _identify_all(bot, unidentified)
+        bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+
+    to_salvage_for_rune: list[int] = []
+    to_deposit: list[int] = []
+    to_sell: list[int] = []
+    for item_id in bag_items:
+        if not Item.Usage.IsIdentified(item_id):
+            continue
+        # ID/salvage kits are kept ON HAND, not banked -- depositing them to
+        # storage defeats the point of always having one available to use
+        # (_ensure_id_kit_stock, rune extraction). Leave them in the bag.
+        if (Item.Usage.IsIDKit(item_id) or Item.Usage.IsSalvageKit(item_id) or Item.Usage.IsLesserKit(item_id)
+                or Item.Usage.IsExpertSalvageKit(item_id) or Item.Usage.IsPerfectSalvageKit(item_id)):
+            continue
+        # Bonus/custom bow and Keiran's Bow are weapon-set gear (see
+        # _equip_or_swap_to_set) that belongs equipped or parked in the
+        # Equipment Pack, not banked -- _is_model_owned()/_equip_model() don't
+        # look in storage, so depositing either one here would just cause the
+        # next lap to think it's missing and re-acquire/re-craft a duplicate.
+        # Leave them exactly where they are, same as the kit exclusion above.
+        _bonus_bow_id = BotSettings.CUSTOM_BOW_ID if BotSettings.CUSTOM_BOW_ID != 0 else 11723
+        if Item.GetModelID(item_id) in (_bonus_bow_id, ModelID.Keirans_Bow.value):
+            continue
+        if BotSettings.KEEP_VIGOR_RUNES and not BotSettings.SELL_EVERYTHING and _is_superior_vigor_rune(item_id):
+            to_salvage_for_rune.append(item_id)
+            continue
+        keep_reason = _triage_keep_reason(item_id)
+        if keep_reason:
+            if BotSettings.DEBUG:
+                print(f"[TRIAGE] Keep item {item_id}: {keep_reason} -> deposit to storage")
+            to_deposit.append(item_id)
+            continue
+        to_sell.append(item_id)
+
+    if not (to_salvage_for_rune or to_deposit or to_sell):
+        return
+
+    if BotSettings.INVENTORY_TRIAGE_DRY_RUN:
+        for item_id in to_salvage_for_rune:
+            name = yield from _resolve_item_name(item_id)
+            print(f"[TRIAGE][DRY RUN] Would salvage item {item_id} ({name}) "
+                  f"with an Expert/Perfect Salvage Kit to extract its Superior Vigor rune, then deposit it")
+        for item_id in to_deposit:
+            name = yield from _resolve_item_name(item_id)
+            print(f"[TRIAGE][DRY RUN] Would deposit item {item_id} ({name}) to storage")
+        for item_id in to_sell:
+            name = yield from _resolve_item_name(item_id)
+            print(f"[TRIAGE][DRY RUN] Would sell item {item_id} ({name})")
+        return
+
+    if BotSettings.DEBUG:
+        print(f"[DEBUG] Triage: {len(to_salvage_for_rune)} to salvage, "
+              f"{len(to_deposit)} to deposit, {len(to_sell)} to sell")
+
+    if to_salvage_for_rune:
+        kit_id = _find_rune_salvage_kit()
+        if not kit_id:
+            # Maryann, EOTN's general merchant (see _sell_white_item_to_free_a_slot).
+            yield from bot.Move._coro_xy_and_interact_npc(-2748.00, 1019.00)
+            if (yield from _wait_for_merchant_window(bot)) and (yield from _wait_for_merchant_offering(ModelID.Expert_Salvage_Kit.value)):
+                yield from bot.helpers.Merchant._buy_item(ModelID.Expert_Salvage_Kit.value, 1)
+            kit_id = _find_rune_salvage_kit()
+        if kit_id:
+            for item_id in to_salvage_for_rune:
+                yield from _salvage_with_kit(item_id, kit_id)
+            # Sweep for whatever's sitting loose now (the freshly-extracted
+            # rune(s), and the salvaged husk item if it still exists) and
+            # fold it into the deposit pass below.
+            fresh_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+            to_deposit.extend(iid for iid in fresh_items if iid not in bag_items)
+        elif BotSettings.DEBUG:
+            print("[DEBUG] No Expert Salvage Kit available and couldn't buy one -- skipping rune salvage")
+
+    if to_deposit:
+        yield from _deposit_all(to_deposit)
+
+    if to_sell:
+        # Maryann, EOTN's general merchant (see _sell_white_item_to_free_a_slot).
+        yield from bot.Move._coro_xy_and_interact_npc(-2748.00, 1019.00)
+        if (yield from _wait_for_merchant_window(bot)):
+            yield from _sell_all(bot, to_sell)
+
+
+def _ensure_id_kit_stock(bot: Botting):
+    """Keep at least one identification kit on hand at all times.
+
+    AutoInventoryHandler identifies constantly in the background whenever it's
+    in EOTN, so it needs a kit available on every single visit -- unlike the
+    rune-extraction salvage kit (bought on demand, only when there's actually
+    a rune to pull), this one can't wait until it's needed because by the time
+    it's needed it's already blocking identification. Superior Identification
+    Kits carry 100 charges, so one purchase covers a long run of future
+    visits; the depleted kit is removed by the game itself on its last use,
+    so an empty-handed check here is enough to know it's time to buy another.
+    """
+    bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+    if any(Item.Usage.IsIDKit(item_id) for item_id in bag_items):
+        return
+    if BotSettings.DEBUG:
+        print("[DEBUG] No identification kit in inventory -- buying a Superior Identification Kit")
+    # Maryann, EOTN's general merchant (see _sell_white_item_to_free_a_slot).
+    yield from bot.Move._coro_xy_and_interact_npc(-2748.00, 1019.00)
+    if (yield from _wait_for_merchant_window(bot)) and (yield from _wait_for_merchant_offering(ModelID.Superior_Identification_Kit.value)):
+        yield from bot.helpers.Merchant._buy_item(ModelID.Superior_Identification_Kit.value, 1)
+
+
+def _sell_white_item_to_free_a_slot(bot: Botting):
+    """If bags are completely full, sell one item to a merchant to open a slot.
+
+    AutoInventoryHandler's salvage step needs at least one open inventory slot
+    to receive the salvage result -- with 0 free slots it can never run, so the
+    low-slots detour below would otherwise sit in town waiting forever.
+
+    Prefers a white-rarity junk item (cheapest to give up). If there isn't one,
+    falls back to any already-identified gold item that doesn't match one of
+    the triage keep-criteria (Superior Vigor rune, double vamp, maxed
+    non-inscribable, black/white dye) -- same "not a keeper" logic the full
+    triage pass uses, just applied early to unblock the rest of it.
+    """
+    if _count_free_bag_slots() > 0:
+        return
+
+    bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
+    sell_item_id = next((iid for iid in bag_items if _is_sellable_junk(iid)), 0)
+    if not sell_item_id:
+        sell_item_id = next(
+            (iid for iid in bag_items
+             if Item.Usage.IsIdentified(iid)
+             and Item.Rarity.GetRarity(iid)[1] == "Gold"
+             and _triage_keep_reason(iid) is None),
+            0)
+    if not sell_item_id:
+        if BotSettings.DEBUG:
+            print("[DEBUG] Inventory full but no sellable item found to free a slot")
+        return
+
+    if BotSettings.DEBUG:
+        print(f"[DEBUG] Inventory full, selling item {sell_item_id} to free a slot")
+    # Maryann, EOTN's general merchant. _find_npc_xy_by_name() can't locate her
+    # from far away -- the game only tracks nearby agents, so a name search from
+    # across the outpost turns up nothing. Move to her known spot directly.
+    yield from bot.Move._coro_xy_and_interact_npc(-2748.00, 1019.00)
+    if (yield from _wait_for_merchant_window(bot)):
+        yield from _sell_all(bot, [sell_item_id])
+
+
 def CheckAndDepositGold(bot: Botting) -> None:
     """Check gold on character, deposit if needed."""
     bot.States.AddHeader("Check and Deposit Gold")
@@ -440,33 +1138,57 @@ def CheckAndDepositGold(bot: Botting) -> None:
         current_map = Map.GetMapID()
         gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
         gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+        free_slots = _count_free_bag_slots()
 
         if BotSettings.DEBUG:
-            print(f"[DEBUG] CheckAndDepositGold: current_map={current_map}, gold={gold_on_char}, storage={gold_in_storage}")
+            print(f"[DEBUG] CheckAndDepositGold: current_map={current_map}, gold={gold_on_char}, "
+                  f"storage={gold_in_storage}, free_slots={free_slots}")
 
-        if gold_on_char > BotSettings.GOLD_THRESHOLD_DEPOSIT:
+        needs_gold_trip = gold_on_char > BotSettings.GOLD_THRESHOLD_DEPOSIT
+        needs_inventory_trip = (
+            BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS
+            and free_slots < BotSettings.LOW_SLOTS_THRESHOLD
+        )
+
+        if needs_gold_trip or needs_inventory_trip:
             if current_map != BotSettings.EOTN_OUTPOST_ID:
                 if BotSettings.DEBUG:
-                    print(f"[DEBUG] Traveling to EOTN from map {current_map}")
+                    print(f"[DEBUG] Traveling to EOTN from map {current_map} "
+                          f"(gold={needs_gold_trip}, low_slots={needs_inventory_trip})")
                 Map.Travel(BotSettings.EOTN_OUTPOST_ID)
                 yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID, timeout=15000)
                 current_map = BotSettings.EOTN_OUTPOST_ID
 
-            if gold_in_storage < 800000:
+            if needs_gold_trip:
+                if gold_in_storage < 800000:
+                    if BotSettings.DEBUG:
+                        print(f"Depositing {gold_on_char} gold in bank")
+                    GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
+                    yield from Routines.Yield.wait(1000)
+                else:
+                    if BotSettings.DEBUG:
+                        print(f"Storage ({gold_in_storage}) has reached 800k+, keeping gold on character for ecto purchases")
+
+            if needs_inventory_trip:
+                # _ensure_id_kit_stock/_triage_and_sell_inventory below do the
+                # actual identify+salvage+deposit+sell work themselves now --
+                # no need to wait around hoping AutoInventoryHandler clears
+                # space first. Just guarantee at least one free slot exists
+                # (needed for the rune-salvage step to receive its result).
                 if BotSettings.DEBUG:
-                    print(f"Depositing {gold_on_char} gold in bank")
-                GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
-                yield from Routines.Yield.wait(1000)
-            else:
-                if BotSettings.DEBUG:
-                    print(f"Storage ({gold_in_storage}) has reached 800k+, keeping gold on character for ecto purchases")
+                    print(f"[DEBUG] Low on free slots ({free_slots}/{BotSettings.LOW_SLOTS_THRESHOLD}), "
+                          f"freeing a slot before triage")
+                yield from _sell_white_item_to_free_a_slot(bot)
         else:
             if BotSettings.DEBUG:
-                print(f"Gold ({gold_on_char}) below threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}), skipping")
+                print(f"Gold ({gold_on_char}) below threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}) "
+                      f"and free slots ({free_slots}) OK, skipping")
 
         current_map = Map.GetMapID()
         if current_map == BotSettings.EOTN_OUTPOST_ID:
+            yield from _ensure_id_kit_stock(bot)
             yield from BuyMaterials(bot)
+            yield from _triage_and_sell_inventory(bot)
 
         if BotSettings.DEBUG:
             print(f"[DEBUG] After gold check: current_map={current_map}, HOM={BotSettings.HOM_OUTPOST_ID}")
@@ -503,21 +1225,101 @@ def ExitToHOM(bot: Botting) -> None:
 
     bot.States.AddCustomState(lambda: _exit_to_hom(bot), "ExitToHOM")
 
+def _is_model_owned(model_id: int) -> bool:
+    """True if the player already owns model_id, anywhere.
+
+    Routines.Checks.Inventory.IsModelInInventoryOrEquipped() only scans the 4
+    standard bags (Backpack/Belt Pouch/Bag1/Bag2) plus the currently-active
+    equipped items -- it never looks inside the Equipment Pack (bag 5), which
+    is exactly where players commonly stash weapon-set spares (Keiran's Bow,
+    the bonus/custom combat bow) to keep them safe from auto-sell/salvage
+    bots. Without this extra check the bot never sees an item parked there
+    (or sitting in the inactive weapon set) and re-acquires/re-crafts one
+    every single run.
+    """
+    if Routines.Checks.Inventory.IsModelInInventoryOrEquipped(model_id):
+        return True
+    pack_items = ItemArray.GetItemArray(ItemArray.CreateBagList(Bags.EquipmentPack.value))
+    return any(Item.GetModelID(item_id) == model_id for item_id in pack_items)
+
+
+def _equip_or_swap_to_set(bot: Botting, model_id: int, weapon_set: int):
+    """Equip model_id, preferring a weapon-set swap over a raw re-equip.
+
+    A player who keeps two prepared weapon sets (e.g. the crafted farming bow
+    on set 1, Keiran's Bow on set 2) stores the inactive set's gear in the
+    Equipment Pack (bag 5) -- that's what "weapon set 2" physically is. Going
+    through _equip_model()'s EquipItem() call in that case forces model_id
+    into the *active* set, evicting whatever's currently worn there instead
+    of switching to the set that already has it. Pressing the weapon-set
+    keybind swaps sets without disturbing either one.
+
+    Only takes the swap path when model_id is actually sitting in the
+    Equipment Pack already (i.e. it's a prepared set); a freshly-acquired
+    item with nowhere organized yet still goes through the normal equip.
+
+    Requires "Weapon Set 1"/"Weapon Set 2" etc. to have a physical keybind
+    assigned in Guild Wars' own Options -> Controls -- the game only
+    activates a set in response to that key being pressed, and py4gw can only
+    simulate whatever key is actually bound to the action.
+    """
+    if Routines.Checks.Inventory.IsModelEquipped(model_id):
+        return
+
+    pack_items = ItemArray.GetItemArray(ItemArray.CreateBagList(Bags.EquipmentPack.value))
+    if any(Item.GetModelID(iid) == model_id for iid in pack_items):
+        yield from Routines.Yield.Keybinds.ActivateWeaponSet(weapon_set)
+        yield from Routines.Yield.wait(250)
+        return
+
+    yield from _equip_model(bot, model_id)
+
+
+def _equip_model(bot: Botting, model_id: int):
+    """Equip model_id, including a copy parked in the Equipment Pack (bag 5).
+
+    bot.helpers.Items._equip() / Routines.Yield.Items.EquipItem() resolve the
+    item to equip via GLOBAL_CACHE.Inventory.GetFirstModelID(), which -- like
+    _is_model_owned() above -- only searches the 4 standard bags. An item kept
+    in the Equipment Pack is invisible to it, so the equip call silently fails
+    (no item_id found) and triggers an unmanaged-fail bot stop even though the
+    player owns one. Fall back to our own Equipment-Pack-aware item lookup and
+    equip that item_id directly.
+    """
+    if Routines.Checks.Inventory.IsModelEquipped(model_id):
+        return True
+
+    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+    if not item_id:
+        pack_items = ItemArray.GetItemArray(ItemArray.CreateBagList(Bags.EquipmentPack.value))
+        item_id = next((iid for iid in pack_items if Item.GetModelID(iid) == model_id), 0)
+
+    if not item_id:
+        ConsoleLog(MODULE_NAME, f"[Equip] Model {model_id} not found to equip.", PySystem.Console.MessageType.Error)
+        bot.helpers.Events.on_unmanaged_fail()
+        return False
+
+    GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+    yield from Routines.Yield.wait(750)
+    return True
+
+
 def PrepareForQuest(bot: Botting) -> None:
     """Prepare for quest in HOM: acquire and equip Keiran's Bow."""
     bot.States.AddHeader("Prepare for Quest")
 
     def _prepare_for_quest(bot: Botting):
-        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Keirans_Bow.value):
+        if not _is_model_owned(ModelID.Keirans_Bow.value):
             yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
 
-        if not Routines.Checks.Inventory.IsModelEquipped(ModelID.Keirans_Bow.value):
-            yield from bot.helpers.Items._equip(ModelID.Keirans_Bow.value)
+        yield from _equip_or_swap_to_set(bot, ModelID.Keirans_Bow.value, weapon_set=2)
 
     bot.States.AddCustomState(lambda: _prepare_for_quest(bot), "PrepareForQuest")
 
 def BuyMaterials(bot: Botting):
     """Buy Glob of Ectoplasm if gold conditions are met."""
+    if not BotSettings.BUY_ECTOS_ENABLED:
+        return
     gold_in_inventory = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
     gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
 
@@ -551,16 +1353,35 @@ def EnterQuest(bot: Botting) -> None:
         import PyDialog
         mission = _get_active_mission()
 
-        # Move to Keiran and open the dialog without sending a specific ID
-        yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
+        # Move to Keiran and open the dialog without sending a specific ID.
+        # Retried up to 3 times -- on a loaded machine (e.g. several GW clients
+        # running in parallel for multi-account farming), pathing/interact can
+        # be slow enough that a single 5s wait for the dialog comes up short
+        # even though Keiran and the quest trigger are both fine; re-issuing
+        # the move+interact is cheap and self-heals that instead of giving up
+        # after one attempt.
+        dialog_opened = False
+        for attempt in range(1, 4):
+            yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
 
-        # Wait for the dialog to become active (up to 5 seconds)
-        deadline = time.time() + 5.0
-        while not PyDialog.PyDialog.is_dialog_active():
-            if time.time() > deadline:
-                ConsoleLog(MODULE_NAME, "[EnterQuest] Timed out waiting for Keiran's dialog", PySystem.Console.MessageType.Warning)
-                return
-            yield from Routines.Yield.wait(150)
+            deadline = time.time() + 5.0
+            while not PyDialog.PyDialog.is_dialog_active():
+                if time.time() > deadline:
+                    break
+                yield from Routines.Yield.wait(150)
+
+            if PyDialog.PyDialog.is_dialog_active():
+                dialog_opened = True
+                break
+
+            ConsoleLog(MODULE_NAME, f"[EnterQuest] Timed out waiting for Keiran's dialog (attempt {attempt}/3)",
+                       PySystem.Console.MessageType.Warning)
+            yield from Routines.Yield.wait(500)
+
+        if not dialog_opened:
+            ConsoleLog(MODULE_NAME, "[EnterQuest] Giving up -- Keiran's dialog never opened after 3 attempts",
+                       PySystem.Console.MessageType.Error)
+            return
 
         # Read the first button's dialog_id as the dynamic base
         buttons = [b for b in PyDialog.PyDialog.get_active_dialog_buttons() if getattr(b, "dialog_id", 0) != 0]
@@ -595,8 +1416,6 @@ def RunQuest(bot: Botting) -> None:
         yield
     bot.States.AddCustomState(lambda: _start_run_timer(), "StartRunTimer")
     bot.States.AddCustomState(lambda: _load_navmesh_object(bot), "Navmesh Init")
-    bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
-    bot.States.AddCustomState(lambda: _handle_war_supplies(bot, BotSettings.WAR_SUPPLIES_ENABLED), "HandleWarSupplies")
 
     bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 
@@ -614,37 +1433,53 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _dispatch(bot), "MissionDispatcher")
 
     # Shared success handler (defined once, reused by each section)
-    def _mission_success(bot: Botting): 
+    def _mission_success(bot: Botting):
         _disable_combat(bot)
         _on_quest_success(bot)
         yield
 
+    # Combat loadout must be applied only once the mission map has actually
+    # finished loading -- doing it earlier (e.g. right after MissionDispatcher,
+    # while EnterQuest's dialog is still transitioning HOM -> the mission map)
+    # means the equip lands during the loading screen and gets dropped, leaving
+    # Keiran's Bow (equipped back in PrepareForQuest) on the bar for the fight.
+    def _prepare_combat_loadout(bot: Botting, map_id: int):
+        def _coro():
+            yield from Routines.Yield.Map.WaitforMapLoad(map_id, timeout=30000)
+            yield from _handle_bonus_bow(bot)
+            yield from _handle_war_supplies(bot, BotSettings.WAR_SUPPLIES_ENABLED)
+        return _coro
+
     # ---- Auspicious Beginnings ----
     bot.States.AddHeader("Auspicious Beginnings")
     bot.States.AddCustomState(_noop_gate, "GateAB")
+    bot.States.AddCustomState(_prepare_combat_loadout(bot, MISSIONS["Auspicious Beginnings"].map_id), "PrepareCombatLoadout_AB")
     _run_ab_movement(bot)
-    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
+    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID, timeout_ms=60000)
     bot.States.AddCustomState(lambda: _mission_success(bot), "AB_Success")
 
     # ---- A Vengance of Blades ----
     bot.States.AddHeader("Vengance")
     bot.States.AddCustomState(_noop_gate, "GateAVoB")
+    bot.States.AddCustomState(_prepare_combat_loadout(bot, MISSIONS["A Vengance of Blades - WIP"].map_id), "PrepareCombatLoadout_AVoB")
     _run_avob_movement(bot)
-    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
+    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID, timeout_ms=60000)
     bot.States.AddCustomState(lambda: _mission_success(bot), "AVoB_Success")
 
     # ---- Shadows in the Jungle ----
     bot.States.AddHeader("Shadows")
     bot.States.AddCustomState(_noop_gate, "GateSitJ")
+    bot.States.AddCustomState(_prepare_combat_loadout(bot, MISSIONS["Shadows in the Jungle - WIP"].map_id), "PrepareCombatLoadout_SitJ")
     _run_sitj_movement(bot)
-    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
+    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID, timeout_ms=60000)
     bot.States.AddCustomState(lambda: _mission_success(bot), "SitJ_Success")
 
     # ---- Rise ----
     bot.States.AddHeader("Rise")
     bot.States.AddCustomState(_noop_gate, "GateRise")
+    bot.States.AddCustomState(_prepare_combat_loadout(bot, MISSIONS["Rise - WIP"].map_id), "PrepareCombatLoadout_Rise")
     _run_rise_movement(bot)
-    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
+    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID, timeout_ms=60000)
     bot.States.AddCustomState(lambda: _mission_success(bot), "Rise_Success")
 
 
@@ -657,11 +1492,11 @@ def _handle_bonus_bow(bot: Botting):
 
     if BotSettings.CUSTOM_BOW_ID != 0:
         bonus_bow_id = BotSettings.CUSTOM_BOW_ID
-    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventoryOrEquipped(bonus_bow_id)
+    has_bonus_bow = _is_model_owned(bonus_bow_id)
     if has_bonus_bow:
         if BotSettings.DEBUG:
             print(f"[DEBUG] Bonus bow found, equipping")
-        yield from bot.helpers.Items._equip(bonus_bow_id)
+        yield from _equip_or_swap_to_set(bot, bonus_bow_id, weapon_set=1)
     else:
         if BotSettings.DEBUG:
             print(f"[DEBUG] Bonus bow not found in inventory or equipped")
@@ -699,11 +1534,21 @@ def _ensure_ini_initialized() -> bool:
 
     # â”€â”€ Load persisted settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     _S = "Settings"
-    BotSettings.GOLD_THRESHOLD_DEPOSIT = _settings_ini.get_int( _S, "gold_threshold", BotSettings.GOLD_THRESHOLD_DEPOSIT)
-    BotSettings.CUSTOM_BOW_ID          = _settings_ini.get_int( _S, "custom_bow_id",  BotSettings.CUSTOM_BOW_ID)
-    BotSettings.WAR_SUPPLIES_ENABLED   = _settings_ini.get_bool(_S, "war_supplies",   BotSettings.WAR_SUPPLIES_ENABLED)
-    BotSettings.DEBUG                  = _settings_ini.get_bool(_S, "debug",          BotSettings.DEBUG)
-    BotSettings.SHOW_HELP              = _settings_ini.get_bool(_S, "show_help",      BotSettings.SHOW_HELP)
+    BotSettings.GOLD_THRESHOLD_DEPOSIT       = _settings_ini.get_int( _S, "gold_threshold",       BotSettings.GOLD_THRESHOLD_DEPOSIT)
+    BotSettings.CUSTOM_BOW_ID                = _settings_ini.get_int( _S, "custom_bow_id",        BotSettings.CUSTOM_BOW_ID)
+    BotSettings.WAR_SUPPLIES_ENABLED         = _settings_ini.get_bool(_S, "war_supplies",         BotSettings.WAR_SUPPLIES_ENABLED)
+    BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS = _settings_ini.get_bool(_S, "manage_inventory_on_low_slots", BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS)
+    BotSettings.LOW_SLOTS_THRESHOLD          = _settings_ini.get_int( _S, "low_slots_threshold",  BotSettings.LOW_SLOTS_THRESHOLD)
+    BotSettings.INVENTORY_TRIAGE_DRY_RUN     = _settings_ini.get_bool(_S, "triage_dry_run",       BotSettings.INVENTORY_TRIAGE_DRY_RUN)
+    BotSettings.KEEP_MATERIALS               = _settings_ini.get_bool(_S, "keep_materials",       BotSettings.KEEP_MATERIALS)
+    BotSettings.KEEP_DYES                    = _settings_ini.get_bool(_S, "keep_dyes",            BotSettings.KEEP_DYES)
+    BotSettings.KEEP_VIGOR_RUNES             = _settings_ini.get_bool(_S, "keep_vigor_runes",     BotSettings.KEEP_VIGOR_RUNES)
+    BotSettings.KEEP_DOUBLE_VAMP             = _settings_ini.get_bool(_S, "keep_double_vamp",     BotSettings.KEEP_DOUBLE_VAMP)
+    BotSettings.KEEP_MAXED_GOLD              = _settings_ini.get_bool(_S, "keep_maxed_gold",      BotSettings.KEEP_MAXED_GOLD)
+    BotSettings.SELL_EVERYTHING              = _settings_ini.get_bool(_S, "sell_everything",      BotSettings.SELL_EVERYTHING)
+    BotSettings.BUY_ECTOS_ENABLED            = _settings_ini.get_bool(_S, "buy_ectos_enabled",    BotSettings.BUY_ECTOS_ENABLED)
+    BotSettings.DEBUG                        = _settings_ini.get_bool(_S, "debug",                BotSettings.DEBUG)
+    BotSettings.SHOW_HELP                    = _settings_ini.get_bool(_S, "show_help",            BotSettings.SHOW_HELP)
 
     # â”€â”€ Load persisted statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     _SS = "Statistics"
@@ -737,11 +1582,21 @@ def _write_settings() -> None:
         return
 
     _S  = "Settings"
-    _settings_ini.set(_S, "gold_threshold", str(BotSettings.GOLD_THRESHOLD_DEPOSIT))
-    _settings_ini.set(_S, "custom_bow_id",  str(BotSettings.CUSTOM_BOW_ID))
-    _settings_ini.set(_S, "war_supplies",   str(BotSettings.WAR_SUPPLIES_ENABLED))
-    _settings_ini.set(_S, "debug",          str(BotSettings.DEBUG))
-    _settings_ini.set(_S, "show_help",      str(BotSettings.SHOW_HELP))
+    _settings_ini.set(_S, "gold_threshold",                str(BotSettings.GOLD_THRESHOLD_DEPOSIT))
+    _settings_ini.set(_S, "custom_bow_id",                 str(BotSettings.CUSTOM_BOW_ID))
+    _settings_ini.set(_S, "war_supplies",                  str(BotSettings.WAR_SUPPLIES_ENABLED))
+    _settings_ini.set(_S, "manage_inventory_on_low_slots", str(BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS))
+    _settings_ini.set(_S, "low_slots_threshold",           str(BotSettings.LOW_SLOTS_THRESHOLD))
+    _settings_ini.set(_S, "triage_dry_run",                str(BotSettings.INVENTORY_TRIAGE_DRY_RUN))
+    _settings_ini.set(_S, "keep_materials",                str(BotSettings.KEEP_MATERIALS))
+    _settings_ini.set(_S, "keep_dyes",                     str(BotSettings.KEEP_DYES))
+    _settings_ini.set(_S, "keep_vigor_runes",              str(BotSettings.KEEP_VIGOR_RUNES))
+    _settings_ini.set(_S, "keep_double_vamp",              str(BotSettings.KEEP_DOUBLE_VAMP))
+    _settings_ini.set(_S, "keep_maxed_gold",               str(BotSettings.KEEP_MAXED_GOLD))
+    _settings_ini.set(_S, "sell_everything",               str(BotSettings.SELL_EVERYTHING))
+    _settings_ini.set(_S, "buy_ectos_enabled",             str(BotSettings.BUY_ECTOS_ENABLED))
+    _settings_ini.set(_S, "debug",                         str(BotSettings.DEBUG))
+    _settings_ini.set(_S, "show_help",                     str(BotSettings.SHOW_HELP))
 
     _SS = "Statistics"
     _settings_ini.set(_SS, "total_runs",      str(BotSettings.TOTAL_RUNS))
@@ -1141,41 +1996,131 @@ def _draw_stats_tab():
 
 
 def _draw_settings(bot: Botting):
-    # Gold threshold controls
+    from Py4GWCoreLib import ImGui, Color
+    from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
+
+    _section_color = Color(255, 200, 100, 255).to_tuple_normalized()
+    _live_color    = (1.00, 0.35, 0.35, 1.0)   # live triage: real money on the line
+    _dry_color     = (0.40, 0.85, 0.50, 1.0)   # dry-run: safe, log-only
+    _muted_color   = (0.55, 0.55, 0.55, 1.0)   # settings currently moot
+
+    def _section(icon: str, title: str) -> None:
+        PyImGui.spacing()
+        ImGui.push_font("Regular", 16)
+        PyImGui.text_colored(f"{icon}  {title}", _section_color)
+        ImGui.pop_font()
+        PyImGui.separator()
+        PyImGui.spacing()
+
+    # ── Economy ──────────────────────────────────────────────────────────
+    _section(IconsFontAwesome5.ICON_SACK_DOLLAR, "Economy")
     gold_threshold = BotSettings.GOLD_THRESHOLD_DEPOSIT
     PyImGui.set_next_item_width(150)
     gold_threshold = PyImGui.input_int("Gold deposit threshold", gold_threshold)
-
-    # Custom Bow ID
     custom_bow_id = BotSettings.CUSTOM_BOW_ID
     PyImGui.set_next_item_width(150)
     custom_bow_id = PyImGui.input_int("Custom Bow ID (0 = Craft Longbow)", custom_bow_id)
-
-    # War Supplies controls
     use_war_supplies = BotSettings.WAR_SUPPLIES_ENABLED
     use_war_supplies = PyImGui.checkbox("Use War Supplies", use_war_supplies)
+    buy_ectos_enabled = BotSettings.BUY_ECTOS_ENABLED
+    buy_ectos_enabled = PyImGui.checkbox("Auto-buy Globs of Ectoplasm with excess gold (>=90k, storage >=800k)", buy_ectos_enabled)
 
-    # Debug controls
+    # ── Inventory Management ────────────────────────────────────────────
+    _section(IconsFontAwesome5.ICON_BOXES, "Inventory Management")
+    manage_on_low_slots = BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS
+    manage_on_low_slots = PyImGui.checkbox("Detour to EOTN when low on free slots", manage_on_low_slots)
+    low_slots_threshold = BotSettings.LOW_SLOTS_THRESHOLD
+    if manage_on_low_slots:
+        PyImGui.indent(20)
+        PyImGui.set_next_item_width(130)
+        low_slots_threshold = PyImGui.input_int("Free slots threshold", low_slots_threshold)
+        PyImGui.unindent(20)
+    keep_materials = BotSettings.KEEP_MATERIALS
+    keep_materials = PyImGui.checkbox("Keep materials (deposit to storage instead of selling)", keep_materials)
+
+    # Dry-run vs live is the single highest-stakes toggle in the whole bot
+    # (the difference between a log line and a real sale) -- give it its own
+    # unmissable badge instead of letting it blend into a normal checkbox row.
+    PyImGui.spacing()
+    triage_dry_run = BotSettings.INVENTORY_TRIAGE_DRY_RUN
+    triage_dry_run = PyImGui.checkbox("Triage dry-run", triage_dry_run)
+    PyImGui.same_line(0, 10)
+    if triage_dry_run:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, _dry_color)
+        PyImGui.text(f"{IconsFontAwesome5.ICON_FLASK}  DRY RUN -- log only, nothing sold/salvaged/deposited for real")
+    else:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, _live_color)
+        PyImGui.text(f"{IconsFontAwesome5.ICON_TRIANGLE_EXCLAMATION}  LIVE -- sells/salvages/deposits for real")
+    PyImGui.pop_style_color(1)
+
+    # ── Triage Keep Rules ────────────────────────────────────────────────
+    _section(IconsFontAwesome5.ICON_SHIELD_HEART, "Triage Keep Rules")
+    sell_everything = BotSettings.SELL_EVERYTHING
+    if sell_everything:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, _live_color)
+    sell_everything = PyImGui.checkbox("Sell everything (ignore every keep rule below)", sell_everything)
+    if BotSettings.SELL_EVERYTHING:
+        PyImGui.pop_style_color(1)
+
+    if sell_everything:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, _muted_color)
+    keep_dyes = BotSettings.KEEP_DYES
+    keep_dyes = PyImGui.checkbox("Keep black/white dyes", keep_dyes)
+    keep_vigor_runes = BotSettings.KEEP_VIGOR_RUNES
+    keep_vigor_runes = PyImGui.checkbox("Keep Superior Vigor runes (+50 HP)", keep_vigor_runes)
+    keep_double_vamp = BotSettings.KEEP_DOUBLE_VAMP
+    keep_double_vamp = PyImGui.checkbox("Keep double vamp weapons", keep_double_vamp)
+    keep_maxed_gold = BotSettings.KEEP_MAXED_GOLD
+    keep_maxed_gold = PyImGui.checkbox("Keep maxed non-inscribable gold weapons/shields", keep_maxed_gold)
+    if sell_everything:
+        PyImGui.pop_style_color(1)
+        PyImGui.text_colored(
+            f"{IconsFontAwesome5.ICON_CIRCLE_INFO}  \"Sell everything\" is on -- the rules above are ignored.",
+            _muted_color,
+        )
+
+    # ── Debug ────────────────────────────────────────────────────────────
+    _section(IconsFontAwesome5.ICON_BUG, "Debug")
     debug = BotSettings.DEBUG
     debug = PyImGui.checkbox("Debug", debug)
 
-    # Help tab visibility
-    PyImGui.separator()
+    # ── Help ─────────────────────────────────────────────────────────────
+    _section(IconsFontAwesome5.ICON_CIRCLE_INFO, "Help")
     show_help = BotSettings.SHOW_HELP
     show_help = PyImGui.checkbox("Show help tab", show_help)
 
     changed = (
-        use_war_supplies != BotSettings.WAR_SUPPLIES_ENABLED   or
-        custom_bow_id    != BotSettings.CUSTOM_BOW_ID          or
-        gold_threshold   != BotSettings.GOLD_THRESHOLD_DEPOSIT or
-        debug            != BotSettings.DEBUG                   or
-        show_help        != BotSettings.SHOW_HELP
+        use_war_supplies    != BotSettings.WAR_SUPPLIES_ENABLED           or
+        buy_ectos_enabled   != BotSettings.BUY_ECTOS_ENABLED              or
+        custom_bow_id       != BotSettings.CUSTOM_BOW_ID                  or
+        gold_threshold      != BotSettings.GOLD_THRESHOLD_DEPOSIT         or
+        manage_on_low_slots != BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS  or
+        low_slots_threshold != BotSettings.LOW_SLOTS_THRESHOLD            or
+        triage_dry_run      != BotSettings.INVENTORY_TRIAGE_DRY_RUN       or
+        keep_materials      != BotSettings.KEEP_MATERIALS                 or
+        keep_dyes           != BotSettings.KEEP_DYES                      or
+        keep_vigor_runes    != BotSettings.KEEP_VIGOR_RUNES               or
+        keep_double_vamp    != BotSettings.KEEP_DOUBLE_VAMP               or
+        keep_maxed_gold     != BotSettings.KEEP_MAXED_GOLD                or
+        sell_everything     != BotSettings.SELL_EVERYTHING                or
+        debug               != BotSettings.DEBUG                          or
+        show_help           != BotSettings.SHOW_HELP
     )
-    BotSettings.WAR_SUPPLIES_ENABLED   = use_war_supplies
-    BotSettings.CUSTOM_BOW_ID         = custom_bow_id
-    BotSettings.GOLD_THRESHOLD_DEPOSIT = gold_threshold
-    BotSettings.DEBUG                  = debug
-    BotSettings.SHOW_HELP             = show_help
+    BotSettings.WAR_SUPPLIES_ENABLED          = use_war_supplies
+    BotSettings.BUY_ECTOS_ENABLED             = buy_ectos_enabled
+    BotSettings.CUSTOM_BOW_ID                 = custom_bow_id
+    BotSettings.GOLD_THRESHOLD_DEPOSIT        = gold_threshold
+    BotSettings.MANAGE_INVENTORY_ON_LOW_SLOTS = manage_on_low_slots
+    BotSettings.LOW_SLOTS_THRESHOLD           = low_slots_threshold
+    BotSettings.INVENTORY_TRIAGE_DRY_RUN      = triage_dry_run
+    BotSettings.KEEP_MATERIALS                = keep_materials
+    BotSettings.KEEP_DYES                     = keep_dyes
+    BotSettings.KEEP_VIGOR_RUNES              = keep_vigor_runes
+    BotSettings.KEEP_DOUBLE_VAMP              = keep_double_vamp
+    BotSettings.KEEP_MAXED_GOLD               = keep_maxed_gold
+    BotSettings.SELL_EVERYTHING               = sell_everything
+    BotSettings.DEBUG                         = debug
+    BotSettings.SHOW_HELP                     = show_help
 
     if changed:
         global _save_requested
