@@ -2,12 +2,20 @@
 # Kilroy Stonekin's Punch-Out Extravaganza! - Behavior Tree Conversion
 # ============================================================================
 # BT conversion of the legacy FSM-based Kilroy bot (same folder). The punch-out
-# lap is one named planner step and the planner repeats it, replacing the
-# legacy JumpToStepName("[H]Killroy Stoneskin_1") loop. Party-wipe recovery
+# lap is the single named planner step and the planner repeats it, replacing
+# the legacy JumpToStepName("[H]Killroy Stoneskin_1") loop. Party-wipe recovery
 # restarts the lap step, replacing the legacy OnDeath coroutine's resign-home
 # half. The coroutine's OTHER half -- the slot-8 stand-up spam that pops the
 # player back up during a knockdown -- is owned by the StandUpService tree
 # (see "Stand-up service" below); without it the dwarves finish the knockdown.
+#
+# Prerequisite: the character must already have the Punch-Out Extravaganza
+# quest unlocked and the punch-out skillbar earned. The unlock chain
+# (legacy UnlockKillroy / 0x835A01 -> 0x84 -> map 703 -> brass knuckles) is
+# deliberately NOT part of this routine: the planner re-runs every step on each
+# successful pass, and the planner restarts the *current* named step on
+# failure, so a once-only unlock in the step list wedges the loop. Run the
+# legacy script once on a new character to unlock, then use this bot to farm.
 #
 # Loot: an explicit BT.LootItems pass runs after the arena clear. This uses the
 # direct pickup path (target + interact, no PickUpLoot shared-memory relay),
@@ -62,7 +70,8 @@ MODULE_DESCRIPTION = (
 ROUTINE_NAME = "KilroyPunchOutSequence"
 
 GUNNARS_HOLD = 644
-KILROY_PUNCHOUT_TRAINING = 703
+# Brass knuckles: required to brawl in the punch-out. Without them equipped the
+# arena fight cannot be won, so the lap re-asserts them every pass.
 BRASS_KNUCKLES_MODEL_ID = 24897
 
 # Arena entry gadget and the fight route, from the legacy script.
@@ -408,21 +417,35 @@ def StandUpService() -> BehaviorTree:
 # Steps
 # ============================================================================
 
-def UnlockKilroyAndSkills() -> BehaviorTree:
-    """One-time quest unlock, from the legacy UnlockKillroy()."""
-    return BT.Sequence(
-        name="Unlock Kilroy and Skills",
+def EquipBrassKnuckles() -> BehaviorTree:
+    """Ensure the brass knuckles are equipped before entering the arena.
+
+    ``BT.EquipItemByModelID`` is already a check-then-equip-then-verify
+    selector, so the happy path costs one inventory read and no action.
+
+    The failure branch matters more than the happy one: the underlying routine
+    returns FAILURE when the knuckles are not in the bags at all, and the
+    planner restarts the *current* named step on failure -- which would pin the
+    whole loop to this lap forever. A missing knuckle is an inventory problem
+    the bot cannot solve, so it is reported loudly and the lap is allowed to
+    continue rather than wedging the loop. Without the knuckles the brawl is
+    unwinnable and the lap will fail on its own terms anyway; the difference is
+    a diagnosable failure instead of a silent restart loop.
+    """
+    return BT.Selector(
+        name="Equip Brass Knuckles",
         children=[
-            BT.Travel(target_map_id=GUNNARS_HOLD),
-            ConfigureAggressiveEnv(),
-            BT.MoveAndDialog(pos=QUEST_NPC_XY, dialog_id=0x835A01),
-            BT.DialogAtXY(pos=QUEST_NPC_XY, dialog_id=0x84),
-            BT.WaitForMapLoad(map_id=KILROY_PUNCHOUT_TRAINING),
-            BT.EquipItemByModelID(BRASS_KNUCKLES_MODEL_ID),
-            BT.Move((19290.50, -11552.23)),
-            BT.WaitUntilOnOutpost(),
-            BT.MoveAndDialog(pos=QUEST_NPC_XY, dialog_id=0x835A07),
-            BT.CancelSkillRewardWindow(),
+            BT.EquipItemByModelID(BRASS_KNUCKLES_MODEL_ID, log=True),
+            BT.LogMessage(
+                "Brass knuckles (%d) are not equipped and not in the bags - "
+                "the punch-out brawl cannot be won without them. Recover the "
+                "knuckles (or rerun the unlock to re-earn the punch-out "
+                "skillbar), then restart the bot. Continuing the lap."
+                % BRASS_KNUCKLES_MODEL_ID,
+                module_name=MODULE_NAME,
+                print_to_console=True,
+                print_to_blackboard=True,
+            ),
         ],
     )
 
@@ -441,6 +464,12 @@ def PunchOutLap() -> BehaviorTree:
             BT.MoveAndDialog(pos=QUEST_NPC_XY, dialog_id=0x835803),
             BT.MoveAndDialog(pos=QUEST_NPC_XY, dialog_id=0x835801),
             BT.MoveAndDialog(pos=QUEST_NPC_XY, dialog_id=0x85),
+            # Brass knuckles are mandatory: the punch-out brawl only responds to
+            # the knuckle skillbar, so entering the arena without them equipped
+            # leaves the bot standing in a fight it cannot win. Legacy ran this
+            # in the once-only unlock step, which is why a lap that re-enters
+            # the same map needs it re-asserted here.
+            EquipBrassKnuckles(),
             BT.WaitUntilOnExplorable(),
             # VanquishNode walks the arena and clears enemies around each
             # waypoint, pausing behavior like the aggressive env does. Split
@@ -511,12 +540,15 @@ def InviteHeroesForXP() -> BehaviorTree:
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     """Ordered (step_name, builder) list consumed by the BT runtime.
 
-    The planner repeats from the top: the unlock step's dialog chain only
-    acts while the quest is unaccepted, matching the legacy JumpToStepName
-    loop that hopped back to the farm step each pass.
+    A single named step is the whole routine: with ``repeat=True`` the planner
+    runs a full pass, resets on success, and starts the lap again. An unlock
+    step must NOT live in this list -- a successful pass resets to step one and
+    re-runs every step, so a quest-unlock chain that can only run once on a
+    fresh character would fail on every later pass. Because the planner
+    restarts the *current* named step on failure, that failure would pin the
+    loop to the unlock forever instead of advancing to the lap.
     """
     return [
-        ("Unlock Kilroy and Skills", UnlockKilroyAndSkills),
         ("Punch-Out Lap", PunchOutLap),
     ]
 
