@@ -260,6 +260,8 @@ def _get_armor_material() -> int:
         return ModelID.Bolt_Of_Cloth.value
     if primary == "Elementalist":
         return ModelID.Bolt_Of_Cloth.value
+    if primary == "Ranger":
+        return ModelID.Bolt_Of_Cloth.value
     return ModelID.Tanned_Hide_Square.value
 
 
