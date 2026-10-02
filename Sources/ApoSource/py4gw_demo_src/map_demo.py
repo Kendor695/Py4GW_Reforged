@@ -158,7 +158,7 @@ def draw_mission_map_tab():
         _FI = map_vars.MissionMap.frame_info
         
         frame_id = Map.MissionMap.GetFrameID()
-        is_mouse_over = Map.MissionMap.is_mouse_over()
+        is_mouse_over = Map.MissionMap.IsMouseOver()
         mm_coords = Map.MissionMap.GetMissionMapWindowCoords()
         mm_contents_coords = Map.MissionMap.GetMissionMapContentsCoords()
         scale = Map.MissionMap.GetScale()
@@ -370,7 +370,7 @@ def draw_mini_map_tab():
         _FI = map_vars.MiniMap.frame_info
         
         frame_id = Map.MiniMap.GetFrameID()
-        is_mouse_over = Map.MiniMap.is_mouse_over()
+        is_mouse_over = Map.MiniMap.IsMouseOver()
         mm_coords = Map.MiniMap.GetWindowCoords()
         scale = Map.MiniMap.GetScale()
         zoom = Map.MiniMap.GetZoom()
@@ -548,7 +548,7 @@ def draw_world_map_tab():
             
         if PyImGui.collapsing_header("World Map Data:"):
             frame_id = Map.WorldMap.GetFrameID()
-            is_mouse_over = Map.WorldMap.is_mouse_over()
+            is_mouse_over = Map.WorldMap.IsMouseOver()
             mm_coords = Map.WorldMap.GetWindowCoords()
             zoom = Map.WorldMap.GetZoom()
 

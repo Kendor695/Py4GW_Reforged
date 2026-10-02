@@ -70,20 +70,21 @@ class CharContextStruct():
     host: List[int]
     token2: int
     h01BC: List[int]
+    h0228: int
     district_number: int
     language: int
     observe_map_id: int
     current_map_id: int
     observe_map_type: int
     current_map_type: int
-    h0240: List[int]
+    h0244: List[int]
     observer_matches_array: GW_Array
-    h0264: List[int]
+    h0268: List[int]
     player_flags: int
     player_number: int
-    h02B0: List[int]
+    h02B4: List[int]
     progress_bar_ptr: CPointer[ProgressBar]
-    h0354: List[int]
+    h0360: List[int]
     player_email_ptr: str
 
     @property

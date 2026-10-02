@@ -10,6 +10,60 @@ Use this guide when reviewing a pull request that reorganizes, migrates, extract
 
 The objective is not only to determine whether the new code works. The review must also determine whether the change remains understandable, traceable, reversible, and safe for future human and AI maintainers.
 
+## Library-first review boundary
+
+Py4GW is reviewed as a distributed library and runtime. Its core classes,
+bindings, services, behavior-tree infrastructure, frame/UI owners, and other
+shared mechanisms are consumed by independently authored scripts. The primary
+review question is therefore whether the pull request preserves and correctly
+extends the library's owned contracts for those consumers.
+
+Leaf scripts are consumers of the library, not co-equal architectural owners.
+Do not request changes merely because a bot, example, route, or other leaf
+script rewrites its private implementation, renames its private helpers, or
+changes tests that assert its internal source layout. Such a script-level
+change is in scope only when it demonstrates a defect in a shared library
+contract, bypasses the owning library mechanism, changes the public API or
+lifecycle, or is the only evidence of a regression in the library behavior.
+
+For every script change, explicitly check these three library-boundary rules:
+
+1. **Reusable capability belongs in the library.** If a script introduces
+   general-purpose behavior, shared state handling, runtime integration, or a
+   capability that another consumer could reasonably reuse, the change belongs
+   in the owning library module. A feature-local copy is a finding even when
+   the script works today.
+2. **Library features must be extended at their owner.** If the library
+   already provides the feature, a script must compose or extend that owner
+   through its supported surface. A script-side override, shadow implementation,
+   monkey patch, or parallel replacement is a finding; the library must absorb
+   the required behavior at the owning layer.
+3. **The library control plane rules actions.** Scripts must route relevant
+   actions, state transitions, recovery, UI ownership, and lifecycle decisions
+   through the library mechanisms that govern them. Direct calls that bypass
+   those mechanisms are findings even when they are confined to one script,
+   because they create an ungoverned path for every consumer to copy.
+
+A private rewrite is acceptable only when it remains genuinely private
+orchestration: it does not contain reusable library capability, replace a
+library feature, or bypass a library-controlled action path.
+
+When a pull request changes both shared code and scripts, review in this order:
+
+1. Shared public APIs, protocols, state, lifecycle, initialization, and owner
+   boundaries.
+2. Compatibility for existing and independently authored library consumers.
+3. Runtime, bridge, persistence, and other cross-boundary behavior.
+4. Leaf-script behavior only to the extent needed to prove or disprove the
+   library findings above.
+
+The prohibition on rewrites and replacements applies to the library's owned
+implementation and its consumer-facing contracts. It does not prohibit a leaf
+script from replacing private orchestration when the supported library API and
+ownership boundaries remain intact. Conversely, a small script diff is still a
+library finding when it monkey-patches, duplicates, shadows, or otherwise
+bypasses an existing owner.
+
 ## Rule status and enforcement
 
 This document defines repository rules and acceptance criteria. It is not a list
