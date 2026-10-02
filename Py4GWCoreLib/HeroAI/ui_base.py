@@ -650,7 +650,7 @@ class HeroAI_BaseUI:
                 is_explorable = Map.IsExplorable()
                 is_outpost = Map.IsOutpost()
 
-                if is_explorable:
+                if is_explorable or is_outpost:
                     v = ui.is_base_configure_consumables_window_open()
                     new_v = ImGui.toggle_button(
                         label=f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",
