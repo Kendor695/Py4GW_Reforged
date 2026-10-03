@@ -1,3 +1,8 @@
+# ============================================================
+# HeroAI Consumable Auto Upkeep - Official Base Patch v02
+# Adds the consumable upkeep scheduler call only.
+# ============================================================
+
 #region Imports
 import math
 import os

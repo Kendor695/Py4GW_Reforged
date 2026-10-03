@@ -1,3 +1,18 @@
+# ============================================================
+# HeroAI Consumable Auto Upkeep - Official Patch v05 - 2026-10-03
+# - Based on the tested Personal v10 consumable logic.
+# - Party DP uses only Four-Leaf Clover / Oath of Purity and coordinates one
+#   real carrier account for the whole party until party DP is cleared.
+# - Pumpkin Cookie first uses personal DP removers, then Pumpkin Cookies until
+#   this character reaches +10% morale.
+# - Party Morale supports Rainbow Candy Cane, Honeycomb, Elixir of Valor, and
+#   Seal of the Dragon Empire through one-carrier party coordination.
+# - Powerstone remains independent and unchanged.
+# - Alcohol keeps the existing target level and adds anti-repeat protection for
+#   3-point / level-5 alcohol while the drunk-state update is pending.
+# - Conset coordination and all existing window/master-switch behavior remain.
+# ============================================================
+
 from collections.abc import Callable
 import ctypes
 from enum import Enum
@@ -82,6 +97,7 @@ template_account: str = ""
 template_code = ""
 configure_consumables_window_open: bool = False
 configure_base_consumables_window_open: bool = False
+# Personal v07: stable but draggable shared consumables popup.
 # OpenPopup is issued once per request. The saved position is applied only on
 # appearance, then updated from the actual window position while the user drags.
 _configure_consumables_popup_pending: bool = False
@@ -1705,19 +1721,46 @@ _CONSUMABLE_AUTO_MIN_INTERVAL_MS = 650
 _consumable_auto_running: dict[str, bool] = {}
 _consumable_auto_last_start_ms: dict[str, int] = {}
 
-# Event-driven selections. Four-Leaf Clover is the representative icon for the
-# entire death-penalty-removal pool; Powerstone is intentionally excluded from
-# that pool because it has its own map-entry / full-party-wipe behavior.
-_DEATH_PENALTY_MODELS = (
+# Party-wide DP items. These affect the whole party and are coordinated through
+# a single carrier account. Personal DP removers belong to the Pumpkin button.
+_PARTY_DP_MODELS = (
     int(ModelID.Four_Leaf_Clover.value),
+    int(ModelID.Oath_Of_Purity.value),
+)
+
+# Personal DP items used before Pumpkin Cookies while this character has DP.
+_PERSONAL_DP_MODELS = (
     int(ModelID.Peppermint_Candy_Cane.value),
     int(ModelID.Refined_Jelly.value),
     int(ModelID.Wintergreen_Candy_Cane.value),
     int(ModelID.Shining_Blade_Ration.value),
-    int(ModelID.Oath_Of_Purity.value),
 )
+
+# Party-wide morale items represented by the Rainbow Candy Cane icon.
+_PARTY_MORALE_MODELS = (
+    int(ModelID.Rainbow_Candy_Cane.value),
+    int(ModelID.Honeycomb.value),
+    int(ModelID.Elixir_Of_Valor.value),
+    int(ModelID.Seal_Of_The_Dragon_Empire.value),
+)
+
+# 3-point alcohol provides level-5 intoxication. Prevent another strong alcohol
+# use while the first drink is still waiting for the client drunk-state update.
+_STRONG_ALCOHOL_MODELS = {
+    int(ModelID.Aged_Dwarven_Ale.value),
+    int(ModelID.Aged_Hunters_Ale.value),
+    int(ModelID.Bottle_Of_Grog.value),
+    int(ModelID.Flask_Of_Firewater.value),
+    int(ModelID.Keg_Of_Aged_Hunters_Ale.value),
+    int(ModelID.Krytan_Brandy.value),
+    int(ModelID.Spiked_Eggnog.value),
+}
+_ALCOHOL_STRONG_PENDING_MS = 3000
+_alcohol_strong_pending_until_ms: dict[str, int] = {}
+
+# Powerstone remains event-driven. Party DP is continuous and does not depend on
+# the local account having just died or revived.
 _EVENT_TRIGGER_MODELS = {
-    int(ModelID.Four_Leaf_Clover.value),
     int(ModelID.Powerstone_Of_Courage.value),
 }
 _consumable_event_state: dict[str, dict[str, int | bool]] = {}
@@ -1838,7 +1881,7 @@ def _consumable_auto_label(model_id: ModelID | int) -> str:
     if value == int(ModelID.Rainbow_Candy_Cane.value):
         return "Party Morale"
     if value == int(ModelID.Four_Leaf_Clover.value):
-        return "Death Penalty"
+        return "Party DP"
     if value == int(ModelID.Pumpkin_Cookie.value):
         return "Pumpkin Cookie"
     if value == int(ModelID.Powerstone_Of_Courage.value):
@@ -1847,37 +1890,6 @@ def _consumable_auto_label(model_id: ModelID | int) -> str:
         return ModelID(value).name.replace("_", " ")
     except Exception:
         return str(value)
-
-
-def _upkeep_party_morale_icon():
-    """Maintain party morale using only Rainbow Candy Cane, then Honeycomb fallback."""
-    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-        yield from Routines.Yield.wait(500)
-        return
-    player_id = int(Player.GetAgentID() or 0)
-    if player_id <= 0 or Agent.IsDead(player_id):
-        yield from Routines.Yield.wait(500)
-        return
-
-    try:
-        morale_entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
-        valid_morale = [int(morale) for _, morale in morale_entries if int(morale or 0) > 0]
-        min_party_morale = min(valid_morale) if valid_morale else int(Player.GetMorale() or 0)
-    except Exception:
-        min_party_morale = int(Player.GetMorale() or 0)
-
-    if min_party_morale >= 110:
-        yield from Routines.Yield.wait(500)
-        return
-
-    item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(ModelID.Rainbow_Candy_Cane.value)) or 0)
-    if not item_id:
-        item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(ModelID.Honeycomb.value)) or 0)
-    if item_id:
-        GLOBAL_CACHE.Inventory.UseItem(item_id)
-        yield from Routines.Yield.wait(750)
-    else:
-        yield from Routines.Yield.wait(500)
 
 
 def _get_consumable_event_state(account_email: str) -> dict[str, int | bool]:
@@ -1983,58 +1995,6 @@ def _use_first_available_once(model_ids: tuple[int, ...] | list[int]):
     yield from Routines.Yield.wait(250)
 
 
-def _clear_all_death_penalty():
-    """After revival, consume available DP-removal items until this character reaches 100% morale."""
-    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-        yield from Routines.Yield.wait(250)
-        return
-
-    player_id = int(Player.GetAgentID() or 0)
-    if player_id <= 0 or Agent.IsDead(player_id):
-        yield from Routines.Yield.wait(250)
-        return
-
-    # Guild Wars represents Death Penalty through morale below 100%.
-    # Re-check after every use because different DP items remove different amounts.
-    # The safety cap prevents an infinite loop if the client does not update morale.
-    attempts = 0
-    max_attempts = 16
-    while attempts < max_attempts:
-        if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-            return
-        if Agent.IsDead(player_id):
-            return
-
-        morale = int(Player.GetMorale() or 0)
-        if morale >= 100:
-            return
-
-        item_id = 0
-        for model_id in _DEATH_PENALTY_MODELS:
-            item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)) or 0)
-            if item_id:
-                break
-
-        if not item_id:
-            return
-
-        before_morale = morale
-        GLOBAL_CACHE.Inventory.UseItem(item_id)
-        attempts += 1
-        yield from Routines.Yield.wait(850)
-
-        if Agent.IsDead(player_id):
-            return
-
-        # Give slower clients one extra refresh window before deciding the item failed.
-        after_morale = int(Player.GetMorale() or 0)
-        if after_morale <= before_morale:
-            yield from Routines.Yield.wait(450)
-            after_morale = int(Player.GetMorale() or 0)
-            if after_morale <= before_morale:
-                return
-
-
 def _shared_party_min_morale() -> int | None:
     try:
         entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
@@ -2050,14 +2010,6 @@ def _run_event_consumable_once(model_id: ModelID | int, cached_data: CacheData):
     key = _consumable_auto_key(value)
     _consumable_auto_running[key] = True
     try:
-        if value == int(ModelID.Four_Leaf_Clover.value):
-            yield from _clear_all_death_penalty()
-            return
-
-        if value == int(ModelID.Pumpkin_Cookie.value):
-            yield from _use_first_available_once((int(ModelID.Pumpkin_Cookie.value),))
-            return
-
         if value == int(ModelID.Powerstone_Of_Courage.value):
             # Powerstone is party-wide. Stagger enabled accounts so an earlier
             # account can apply the +10 morale before later accounts re-check.
@@ -2095,7 +2047,7 @@ def _schedule_event_consumable(model_id: ModelID | int, cached_data: CacheData) 
 
 
 def _upkeep_pumpkin_cookie():
-    """Maintain this character at 110% morale using Pumpkin Cookies only."""
+    """Use personal DP removers first, then maintain this character at +10% with Pumpkin Cookies."""
     if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
         yield from Routines.Yield.wait(500)
         return
@@ -2110,20 +2062,42 @@ def _upkeep_pumpkin_cookie():
         yield from Routines.Yield.wait(500)
         return
 
-    while morale < 110:
-        item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(ModelID.Pumpkin_Cookie.value)) or 0)
+    attempts = 0
+    max_attempts = 20
+    while morale < 110 and attempts < max_attempts:
+        if not Routines.Checks.Map.MapValid() or not Map.IsExplorable() or Agent.IsDead(player_id):
+            return
+
+        item_id = 0
+
+        # While DP exists, use self-only DP removers before spending Pumpkin Cookies.
+        if morale < 100:
+            for model_id in _PERSONAL_DP_MODELS:
+                item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)) or 0)
+                if item_id:
+                    break
+
+        # No personal DP remover (or DP already cleared): use Pumpkin Cookies.
+        if not item_id:
+            item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(ModelID.Pumpkin_Cookie.value)) or 0)
+
         if not item_id:
             break
 
+        before_morale = morale
         GLOBAL_CACHE.Inventory.UseItem(item_id)
+        attempts += 1
         yield from Routines.Yield.wait(750)
 
         if Agent.IsDead(player_id):
-            break
-        updated_morale = int(Player.GetMorale() or 0)
-        if updated_morale <= 0:
-            break
-        morale = updated_morale
+            return
+
+        morale = int(Player.GetMorale() or 0)
+        if morale <= before_morale:
+            yield from Routines.Yield.wait(450)
+            morale = int(Player.GetMorale() or 0)
+            if morale <= before_morale:
+                break
 
     yield from Routines.Yield.wait(250)
 
@@ -2165,6 +2139,86 @@ def _upkeep_town_cake_while_moving():
     yield from Routines.Yield.wait(500)
 
 
+def _upkeep_alcohol_with_strong_guard(target_alc_level: int = 2):
+    """Preserve existing alcohol target behavior while preventing duplicate 3-point alcohol use."""
+    import PyEffects
+
+    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
+        yield from Routines.Yield.wait(500)
+        return
+
+    player_id = int(Player.GetAgentID() or 0)
+    if player_id <= 0 or Agent.IsDead(player_id):
+        yield from Routines.Yield.wait(500)
+        return
+
+    account_email = str(Player.GetAccountEmail() or "")
+    now_ms = int(Utils.GetBaseTimestamp())
+    drunk_level = int(PyEffects.PyEffects.GetAlcoholLevel() or 0)
+
+    if drunk_level >= int(target_alc_level):
+        if account_email:
+            _alcohol_strong_pending_until_ms.pop(account_email, None)
+        yield from Routines.Yield.wait(500)
+        return
+
+    # A strong drink was just used but the drunk-level snapshot has not caught up.
+    pending_until = int(_alcohol_strong_pending_until_ms.get(account_email, 0) or 0)
+    if pending_until > now_ms:
+        yield from Routines.Yield.wait(min(500, max(100, pending_until - now_ms)))
+        return
+    if account_email and pending_until:
+        _alcohol_strong_pending_until_ms.pop(account_email, None)
+
+    alcohol_models = [
+        int(model.value if hasattr(model, "value") else model)
+        for model in Routines.Yield.Upkeepers.ALCOHOL_ITEMS
+    ]
+
+    # Keep the original target-level behavior for 1-point alcohol. Strong alcohol
+    # gets a pending guard because one drink already supplies level-5 intoxication.
+    while drunk_level < int(target_alc_level):
+        selected_model = 0
+        item_id = 0
+        for model_id in alcohol_models:
+            item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)) or 0)
+            if item_id:
+                selected_model = int(model_id)
+                break
+
+        if not item_id:
+            yield from Routines.Yield.wait(500)
+            return
+
+        GLOBAL_CACHE.Inventory.UseItem(item_id)
+
+        if selected_model in _STRONG_ALCOHOL_MODELS:
+            if account_email:
+                _alcohol_strong_pending_until_ms[account_email] = int(Utils.GetBaseTimestamp()) + _ALCOHOL_STRONG_PENDING_MS
+
+            # One strong drink is enough. Poll for the state update, but never
+            # consume a second 3-point drink during this pass.
+            elapsed = 0
+            while elapsed < 2000:
+                yield from Routines.Yield.wait(100)
+                elapsed += 100
+                updated_level = int(PyEffects.PyEffects.GetAlcoholLevel() or 0)
+                if updated_level >= int(target_alc_level):
+                    if account_email:
+                        _alcohol_strong_pending_until_ms.pop(account_email, None)
+                    return
+                if updated_level > drunk_level:
+                    # The first state change is visible, but keep the pending guard
+                    # until target level is confirmed or the timeout expires.
+                    drunk_level = updated_level
+            return
+
+        yield from Routines.Yield.wait(500)
+        drunk_level = int(PyEffects.PyEffects.GetAlcoholLevel() or 0)
+
+    yield from Routines.Yield.wait(500)
+
+
 def _consumable_upkeep_generator(model_id: ModelID | int):
     value = int(model_id.value if hasattr(model_id, "value") else model_id)
     upkeepers = Routines.Yield.Upkeepers
@@ -2178,9 +2232,9 @@ def _consumable_upkeep_generator(model_id: ModelID | int):
     if value == int(ModelID.Armor_Of_Salvation.value):
         return upkeepers.Upkeep_ArmorOfSalvation()
     if value == int(ModelID.Dwarven_Ale.value):
-        return upkeepers.Upkeep_Alcohol(target_alc_level=2, disable_drunk_effects=False)
+        return _upkeep_alcohol_with_strong_guard(target_alc_level=2)
     if value == int(ModelID.Rainbow_Candy_Cane.value):
-        return _upkeep_party_morale_icon()
+        return None
     if value == int(ModelID.Pumpkin_Cookie.value):
         return _upkeep_pumpkin_cookie()
     if value == int(ModelID.Birthday_Cupcake.value):
@@ -2210,10 +2264,9 @@ _CONSET_AUTO_MODELS = {
     int(ModelID.Armor_Of_Salvation.value),
 }
 
-# Rainbow Candy Cane / Honeycomb keeps its existing party-morale behavior.
-# Conset uses the dedicated multi-account coordinator below instead of local
-# per-account upkeep/staggering.
+# Party-wide auto categories coordinated through one carrier account.
 _PARTY_WIDE_AUTO_MODELS = {
+    int(ModelID.Four_Leaf_Clover.value),
     int(ModelID.Rainbow_Candy_Cane.value),
 }
 
@@ -2375,6 +2428,196 @@ def _wait_for_conset_effect(model_id: int):
     return _conset_effect_active(model_id)
 
 
+_PARTY_MORALE_LOCK_STALE_SECONDS = 8.0
+_PARTY_MORALE_SEARCH_INTERVAL_MS = 100
+_PARTY_MORALE_CONFIRM_TIMEOUT_MS = 1800
+_PARTY_MORALE_CONFIRM_POLL_MS = 100
+
+
+def _party_morale_lock_path() -> str:
+    try:
+        projects_path = str(PySystem.Console.get_projects_path() or "").strip()
+        if not projects_path:
+            return ""
+        lock_dir = os.path.join(projects_path, "Settings", "Global", "HeroAI")
+        os.makedirs(lock_dir, exist_ok=True)
+        return os.path.join(lock_dir, ".party_morale_auto.lock")
+    except Exception:
+        return ""
+
+
+def _try_acquire_party_morale_lock(account_email: str) -> tuple[str, str] | None:
+    path = _party_morale_lock_path()
+    if not path:
+        return None
+    token = f"{account_email}|{os.getpid()}|{time.time_ns()}"
+    for _ in range(2):
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(fd, token.encode("utf-8", errors="ignore"))
+            finally:
+                os.close(fd)
+            return (path, token)
+        except FileExistsError:
+            try:
+                if (time.time() - os.path.getmtime(path)) > _PARTY_MORALE_LOCK_STALE_SECONDS:
+                    os.remove(path)
+                    continue
+            except Exception:
+                pass
+            return None
+        except Exception:
+            return None
+    return None
+
+
+def _release_party_morale_lock(lock_info: tuple[str, str] | None) -> None:
+    if not lock_info:
+        return
+    path, token = lock_info
+    try:
+        current = ""
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                current = handle.read().strip()
+        except Exception:
+            pass
+        if not current or current == token:
+            os.remove(path)
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
+
+
+def _party_min_morale_for_auto() -> int | None:
+    shared = _shared_party_min_morale()
+    if shared is not None:
+        return int(shared)
+    try:
+        local = int(Player.GetMorale() or 0)
+        return local if local > 0 else None
+    except Exception:
+        return None
+
+
+def _party_pcon_params_for_model(model_id: int) -> tuple[int, int, int, int]:
+    model_id = int(model_id)
+    # Messaging.py in this baseline classifies Seal as self-morale. Pairing a
+    # party-wide morale fallback makes the receiver use the party-morale gate,
+    # while Seal remains the first item actually selected when it is present.
+    if model_id == int(ModelID.Seal_Of_The_Dragon_Empire.value):
+        return (model_id, 0, int(ModelID.Honeycomb.value), 0)
+    return (model_id, 0, 0, 0)
+
+
+def _wait_for_party_morale_increase(before_morale: int | None):
+    if before_morale is None:
+        yield from Routines.Yield.wait(1000)
+        return True
+
+    elapsed = 0
+    while elapsed < _PARTY_MORALE_CONFIRM_TIMEOUT_MS:
+        current = _party_min_morale_for_auto()
+        if current is not None and int(current) > int(before_morale):
+            return True
+        yield from Routines.Yield.wait(_PARTY_MORALE_CONFIRM_POLL_MS)
+        elapsed += _PARTY_MORALE_CONFIRM_POLL_MS
+    current = _party_min_morale_for_auto()
+    return current is not None and int(current) > int(before_morale)
+
+
+def _use_party_model_from_one_carrier(model_id: int, cached_data: CacheData, before_morale: int | None):
+    """Find one real account carrying model_id, command one use, and confirm party morale changed."""
+    sender_email = str(cached_data.account_email or Player.GetAccountEmail() or "")
+    params = _party_pcon_params_for_model(int(model_id))
+
+    for account in _conset_party_accounts(cached_data):
+        if not _shared_account_has_model(account, int(model_id)):
+            yield from Routines.Yield.wait(_PARTY_MORALE_SEARCH_INTERVAL_MS)
+            continue
+
+        receiver_email = str(account.AccountEmail or "")
+        if not receiver_email:
+            yield from Routines.Yield.wait(_PARTY_MORALE_SEARCH_INTERVAL_MS)
+            continue
+
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            receiver_email,
+            SharedCommandType.PCon,
+            params,
+        )
+
+        if (yield from _wait_for_party_morale_increase(before_morale)):
+            return True
+
+        # Shared inventory snapshots may be stale after the last item in a stack.
+        # Move to the next candidate only after the confirmation window completed.
+        yield from Routines.Yield.wait(_PARTY_MORALE_SEARCH_INTERVAL_MS)
+
+    return False
+
+
+def _run_partywide_dp_once(cached_data: CacheData):
+    """Use Clover/Oath from any carrier until every visible party member has no DP."""
+    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
+        return
+
+    lock_info = _try_acquire_party_morale_lock(str(cached_data.account_email or Player.GetAccountEmail() or ""))
+    if lock_info is None:
+        return
+
+    try:
+        attempts = 0
+        while attempts < 16:
+            before_morale = _party_min_morale_for_auto()
+            if before_morale is None or before_morale >= 100:
+                return
+
+            used = False
+            for model_id in _PARTY_DP_MODELS:
+                if (yield from _use_party_model_from_one_carrier(model_id, cached_data, before_morale)):
+                    used = True
+                    attempts += 1
+                    break
+
+            if not used:
+                return
+    finally:
+        _release_party_morale_lock(lock_info)
+
+
+def _run_partywide_morale_once(cached_data: CacheData):
+    """Maintain party morale to 110 using Rainbow/Honeycomb, then Elixir/Seal fallbacks."""
+    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
+        return
+
+    lock_info = _try_acquire_party_morale_lock(str(cached_data.account_email or Player.GetAccountEmail() or ""))
+    if lock_info is None:
+        return
+
+    try:
+        attempts = 0
+        while attempts < 16:
+            before_morale = _party_min_morale_for_auto()
+            if before_morale is None or before_morale >= 110:
+                return
+
+            used = False
+            for model_id in _PARTY_MORALE_MODELS:
+                if (yield from _use_party_model_from_one_carrier(model_id, cached_data, before_morale)):
+                    used = True
+                    attempts += 1
+                    break
+
+            if not used:
+                return
+    finally:
+        _release_party_morale_lock(lock_info)
+
+
 def _run_partywide_conset_once(model_id: int, params: tuple[int, int, int, int], cached_data: CacheData):
     """Use one missing Conset item from the first party account that actually carries it."""
     model_id = int(model_id)
@@ -2450,15 +2693,13 @@ def _run_consumable_auto_once(model_id: ModelID | int, cached_data: CacheData):
             yield from _run_partywide_conset_once(value, params, cached_data)
             return
 
-        # Rainbow Candy Cane / Honeycomb retains the previous party-position
-        # staggering behavior. This change is intentionally limited to Conset.
-        if value in _PARTY_WIDE_AUTO_MODELS:
-            try:
-                party_position = max(0, int(getattr(cached_data.data, "party_position", 0) or 0))
-            except Exception:
-                party_position = 0
-            if party_position > 0:
-                yield from Routines.Yield.wait(min(party_position, 7) * 400)
+        if value == int(ModelID.Four_Leaf_Clover.value):
+            yield from _run_partywide_dp_once(cached_data)
+            return
+
+        if value == int(ModelID.Rainbow_Candy_Cane.value):
+            yield from _run_partywide_morale_once(cached_data)
+            return
 
         generator = _consumable_upkeep_generator(value)
         if generator is not None:
@@ -2498,8 +2739,6 @@ def tick_consumable_upkeep(cached_data: CacheData) -> None:
         is_town = _is_outpost_or_guild_hall()
 
         if is_explorable and not player_dead:
-            if local_revive:
-                _schedule_event_consumable(ModelID.Four_Leaf_Clover, cached_data)
             if map_entry or party_wipe_revive:
                 _schedule_event_consumable(ModelID.Powerstone_Of_Courage, cached_data)
 
@@ -2566,6 +2805,14 @@ def _use_all_cons(cached_data: CacheData):
 
         if value in _CONSET_AUTO_MODELS:
             yield from _run_partywide_conset_once(value, tuple(int(v) for v in params), cached_data)
+            continue
+
+        if value == int(ModelID.Four_Leaf_Clover.value):
+            yield from _run_partywide_dp_once(cached_data)
+            continue
+
+        if value == int(ModelID.Rainbow_Candy_Cane.value):
+            yield from _run_partywide_morale_once(cached_data)
             continue
 
         _post_pcon_message(params, cached_data)
@@ -2671,20 +2918,20 @@ def _draw_consumable_toggle_grid(cached_data: CacheData, table_id: str):
                 if value == int(ModelID.Dwarven_Ale.value):
                     extra = "\nUses any supported alcohol; maintains drunk level >= 2 in explorable areas."
                 elif value == _TOWN_CAKE_SENTINEL:
-                    extra = "\nUses a city-speed sweet only while THIS character is moving and no Sugar Rush/Jolt effect is active."
-                elif value == int(ModelID.Four_Leaf_Clover.value):
+                    extra = "\nUses city-speed sweets only while moving in town."
+                elif value == int(ModelID.Rainbow_Candy_Cane.value):
                     extra = (
-                        "\nAfter THIS character dies and is resurrected, keeps using available DP-removal items"
-                        " until this character has no Death Penalty remaining."
-                        "\nPool: Four-Leaf Clover, Peppermint Candy Cane, Refined Jelly, Wintergreen Candy Cane,"
-                        " Shining Blade Rations, Oath of Purity."
+                        "\nRainbow/Honeycomb +5%; Elixir/Seal +10%."
+                        "\nSeal also recharges skills."
                     )
+                elif value == int(ModelID.Four_Leaf_Clover.value):
+                    extra = "\nClover/Oath: clears party Death Penalty."
                 elif value == int(ModelID.Pumpkin_Cookie.value):
-                    extra = "\nKeeps THIS character at 110% morale using Pumpkin Cookies while enabled."
+                    extra = "\nUses DP removers first, then Pumpkin Cookies to +10%."
                 elif value == int(ModelID.Powerstone_Of_Courage.value):
                     extra = (
-                        "\nUses one Powerstone on explorable-map entry and once after a full-party wipe revives."
-                        "\nParty-wide +10 morale / DP recovery; duplicate enabled accounts are staggered and re-check morale."
+                        "\nClears party DP and gives +10% morale."
+                        "\nUses on map entry and after a full-party wipe."
                     )
                 else:
                     extra = ""
@@ -2707,7 +2954,7 @@ def draw_consumables_window(cached_data: CacheData):
     if not configure_consumables_window_open:
         return
 
-    # Use a normal floating ImGui window instead of a popup.
+    # v08 intentionally uses a normal floating ImGui window instead of a popup.
     # Popups can be dismissed when game/UI focus changes during combat. A normal
     # window remains visible until our own close rule is triggered.
     if _configure_consumables_popup_pending:
@@ -2738,6 +2985,8 @@ def draw_consumables_window(cached_data: CacheData):
         except Exception:
             pass
 
+        ImGui.text("Consumable auto upkeep")
+        ImGui.text("Lit icon = selected for this account")
         _draw_consumable_master_toggles(cached_data, "Popup")
         if PyImGui.button("Use Cons"):
             GLOBAL_CACHE.Coroutines.append(_use_all_cons(cached_data))
@@ -2766,6 +3015,8 @@ def draw_base_consumables_window(cached_data: CacheData):
         | PyImGui.WindowFlags.NoSavedSettings
     )
     if ImGui.Begin(ini_key=cached_data.consumables_ini_key, name="Configure Consumables", p_open=True, flags=_flags):
+        ImGui.text("Consumable auto upkeep")
+        ImGui.text("Lit icon = selected for this account")
         _draw_consumable_master_toggles(cached_data, "Base")
         if PyImGui.button("Use Cons"):
             GLOBAL_CACHE.Coroutines.append(_use_all_cons(cached_data))

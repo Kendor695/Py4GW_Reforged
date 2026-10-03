@@ -1,3 +1,8 @@
+# ============================================================
+# HeroAI Consumable Auto Upkeep - Official Base Patch v02
+# Allows the existing Consumables window to open in outposts as well as explorables.
+# ============================================================
+
 import math
 
 from . import globals as hero_globals
