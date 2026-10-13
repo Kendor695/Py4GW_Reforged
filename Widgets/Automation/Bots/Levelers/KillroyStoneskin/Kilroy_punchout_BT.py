@@ -377,23 +377,23 @@ def StandUpService() -> BehaviorTree:
         global _stand_up_skillbar
         try:
             if not Routines.Checks.Map.MapValid():
-                return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
 
             agent_id = Player.GetAgentID()
             energy = Agent.GetEnergy(agent_id)
 
             # Energy recovered (or the agent was never down): nothing to do.
             if energy >= STAND_UP_ENERGY_SENTINEL:
-                return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
 
             # In the punch-out a downed agent reports no energy. Do not spam
             # while dead for real -- party-wipe recovery owns that path.
             if Routines.Checks.Player.IsDead():
-                return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
 
             now_ms = time.monotonic() * 1000.0
             if now_ms - last_queue_ms["value"] < STAND_UP_INTERVAL_MS:
-                return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
             last_queue_ms["value"] = now_ms
 
             if _stand_up_skillbar is None:
@@ -402,8 +402,8 @@ def StandUpService() -> BehaviorTree:
                 "FAST", _stand_up_skillbar.UseSkillTargetless, STAND_UP_SLOT
             )
         except Exception:
-            pass
-        return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+        return BehaviorTree.NodeState.RUNNING
 
     return BehaviorTree(
         BehaviorTree.ActionNode(
