@@ -43,8 +43,8 @@ from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 
-BOT_NAME = "Killroy Stoneskin"
-MODULE_NAME = "Killroy Stonekin's Punch-Out Extravaganza BT"
+BOT_NAME = "Kilroy Stoneskin"
+MODULE_NAME = "Kilroy BT Punch Out"
 MODULE_ICON = "Assets\\Textures\\Module_Icons\\Leveler - Killroy Stoneskin.png"
 ICON_PATH = os.path.join(
     PySystem.Console.get_projects_path(),
